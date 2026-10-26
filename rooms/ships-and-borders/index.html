@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ships at the Border</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/im-fell-english@5.3.0/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/im-fell-english@5.3.0/400-italic.css">
+<style>
+  :root {
+    --paper: #f3e9d2;
+    --paper-deep: #e6d8b8;
+    --ink: #2a2418;
+    --ink-soft: #4a3a28;
+    --sepia: #7a5a3a;
+    --blue: #2b5ea8;
+    --blue-soft: #6f8fb0;
+    --brass: #b8923a;
+    --brass-dark: #7a5a1c;
+    --brass-light: #e8cf8a;
+    --font: "IM Fell English", Georgia, "Times New Roman", serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--font); }
+  body { overflow-x: hidden; }
+  #room { display: flex; flex-direction: row; min-height: 100vh; }
+  #chart { position: relative; flex: 1 1 auto; min-width: 0; height: 100vh; }
+  #c { display: block; width: 100%; height: 100%; }
+  #title { position: absolute; left: 22px; top: 16px; pointer-events: none; max-width: 60%; }
+  #title h1 { margin: 0; font-size: clamp(20px, 2.6vw, 34px); font-weight: 400; letter-spacing: 2px; text-transform: uppercase; }
+  #title .sub { margin: 2px 0 0; font-style: italic; font-size: clamp(11px, 1.1vw, 14px); color: var(--ink-soft); }
+  #timebar { position: absolute; left: 64px; right: 64px; bottom: 58px; pointer-events: none; }
+  #timebar .rule { position: relative; height: 34px; pointer-events: auto; }
+  #timebar input[type=range] { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 34px; margin: 0;
+    -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+  #timebar input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--ink-soft); }
+  #timebar input[type=range]::-moz-range-track { height: 2px; background: var(--ink-soft); }
+  #timebar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -10px;
+    border-radius: 50%; border: 2px solid var(--brass-dark);
+    background: radial-gradient(circle at 35% 35%, var(--brass-light), var(--brass) 55%, var(--brass-dark));
+    box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+  #timebar input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--brass-dark);
+    background: radial-gradient(circle at 35% 35%, var(--brass-light), var(--brass) 55%, var(--brass-dark)); }
+  #timebar .ticks { position: absolute; left: 0; right: 0; top: 22px; height: 16px; }
+  #timebar .ticks span { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; font-style: italic; color: var(--ink-soft); white-space: nowrap; }
+  #timebar .ticks span::before { content: ""; position: absolute; left: 50%; top: -20px; width: 1px; height: 10px; background: var(--ink-soft); }
+  #clock { position: absolute; right: 0; top: -26px; font-size: 14px; letter-spacing: .5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  #panel { flex: 0 0 320px; width: 320px; height: 100vh; overflow-y: auto; overflow-x: hidden; padding: 18px 18px 60px;
+    border-left: 1px solid rgba(74,58,40,.35); background:
+      linear-gradient(90deg, rgba(74,58,40,.07), rgba(74,58,40,0) 14px), var(--paper); }
+  #panel h2 { font-size: 12px; font-weight: 400; letter-spacing: 2px; text-transform: uppercase; margin: 14px 0 6px; color: var(--sepia);
+    border-bottom: 1px solid rgba(122,90,58,.45); padding-bottom: 4px; }
+  #panel h2:first-child { margin-top: 0; }
+  .caption { font-size: 13px; line-height: 1.4; margin: 0; color: var(--ink); }
+  .caption em { color: var(--ink-soft); }
+
+  table.log { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.log th { font-weight: 400; font-style: italic; color: var(--ink-soft); text-align: right; padding: 2px 0 4px; border-bottom: 1px solid rgba(74,58,40,.4); }
+  table.log th:first-child { text-align: left; }
+  table.log td { padding: 3px 0; text-align: right; font-variant-numeric: tabular-nums; border-bottom: 1px dotted rgba(74,58,40,.25); }
+  table.log td:first-child { text-align: left; }
+  .sw { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 1px; }
+
+  .instruments { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .brass { font-family: var(--font); color: var(--ink); border: 2px solid var(--brass-dark); border-radius: 50%; width: 52px; height: 52px; cursor: pointer; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    background: radial-gradient(circle at 35% 30%, var(--brass-light), var(--brass) 60%, var(--brass-dark));
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,.25), 0 2px 4px rgba(0,0,0,.3); }
+  .brass:active { transform: translateY(1px); }
+  .dial { display: flex; align-items: center; gap: 6px; }
+  .dial .lbl { font-size: 11px; font-style: italic; color: var(--ink-soft); width: 100%; }
+  .dial button { font-family: var(--font); font-size: 12px; cursor: pointer; padding: 5px 9px; color: var(--ink); border: 1.5px solid var(--brass-dark); border-radius: 4px;
+    background: linear-gradient(180deg, var(--brass-light), var(--brass)); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .dial button[aria-pressed=true] { background: linear-gradient(180deg, var(--brass), var(--brass-dark)); color: #fff6dc; box-shadow: inset 0 1px 3px rgba(0,0,0,.45); }
+  .note { font-size: 11.5px; font-style: italic; color: var(--ink-soft); margin: 8px 0 0; line-height: 1.4; }
+  .source { font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); margin: 0; }
+  .source a { color: var(--blue); }
+
+  @media (max-width: 760px) {
+    #room { flex-direction: column; min-height: 0; }
+    #chart { height: calc(52vw + 186px); min-height: 0; }
+    #title h1 { font-size: 19px; letter-spacing: 1.5px; }
+    #title { max-width: 94%; }
+    #panel { flex: none; width: 100%; height: auto; border-left: 0; border-top: 1px solid rgba(74,58,40,.35); padding: 14px 16px 70px;
+      background: var(--paper); }
+    #title { left: 12px; top: 10px; max-width: 70%; }
+    #timebar { left: 12px; right: 12px; bottom: 12px; }
+    #clock { font-size: 12px; }
+    #timebar .ticks span { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="room">
+  <div id="chart">
+    <canvas id="c"></canvas>
+    <div id="title">
+      <h1>Ships at the Border</h1>
+      <p class="sub">Channel Islands National Marine Sanctuary · AIS vessel tracks, 15 to 18 June 2023</p>
+    </div>
+    <div id="timebar">
+      <div class="rule">
+        <div id="clock">—</div>
+        <input id="scrub" type="range" min="0" max="5759" step="1" value="0" aria-label="Time">
+        <div class="ticks" id="ticks"></div>
+      </div>
+    </div>
+  </div>
+  <aside id="panel">
+    <h2>What you see</h2>
+    <p class="caption">Four days of ship positions around the Channel Islands. Each vessel is a small ink mark that moves along its track. The ink darkens where ships repeat a path. <em>Hatched areas</em> are state and federal marine reserves. The <em>dashed blue line</em> is the sanctuary boundary. The <em>dotted sepia bands</em> are the charted traffic lanes. The thin lines around the land are decorative, in the manner of a printed chart.</p>
+    <h2>What you hear</h2>
+    <p class="caption">A sonar ping sounds when a vessel enters a hatched reserve. The pitch tells the vessel class. A softer, lower ping marks an entry into the sanctuary. A foghorn sounds when a ship 200 m or longer enters the traffic lanes. Each sound comes from the side of the chart where the ship is. The wave noise rises with the number of vessels under way.</p>
+    <h2>Instruments</h2>
+    <div class="instruments">
+      <button class="brass" id="play" aria-label="Play or pause">Pause</button>
+      <div class="dial">
+        <span class="lbl">Rate, minutes of data per second</span>
+        <button data-rate="5" aria-pressed="false">5</button>
+        <button data-rate="12" aria-pressed="true">12</button>
+        <button data-rate="30" aria-pressed="false">30</button>
+      </div>
+    </div>
+    <p class="note">Drag the brass knob on the chart to move in time.</p>
+    <h2>Log of crossings</h2>
+    <table class="log" id="log">
+      <thead><tr><th>Vessel class</th><th>Ships</th><th>Reserve entries</th><th>Sanctuary entries</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="note" id="logfoot"></p>
+    <h2>Source</h2>
+    <p class="source">NOAA Marine Cadastre AIS daily files, 15 to 18 June 2023. Boundaries: NOAA Office of National Marine Sanctuaries, California Department of Fish and Wildlife (BIOS ds582), NOAA Office of Coast Survey chart data. Coast: Natural Earth 10m. <a href="README.md">Read the README</a>.</p>
+  </aside>
+</div>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const canvas = $('#c');
+  const ctx = canvas.getContext('2d');
+  const scrub = $('#scrub');
+  const clock = $('#clock');
+  const playBtn = $('#play');
+  const T0 = Date.UTC(2023, 5, 15, 0, 0, 0);
+  const MINUTES = 5760;
+  const KM_PER_DEG = 111.32;
+
+  // ---------------------------------------------------------------- state
+  const S = {
+    data: null, zones: null, vessels: null, events: null, stats: null,
+    t: 0, playing: true, rate: 12, lastFrame: 0,
+    W: 0, H: 0, dpr: 1, proj: null,
+    base: null, ink: null, hatch: null, grain: null,
+    ptr: [], ei: 0, counts: null, rings: [], drift: 0,
+    audio: null, fontReady: false,
+  };
+
+  // ---------------------------------------------------------------- data
+  async function load() {
+    const [zones, vessels, events, stats, buf] = await Promise.all([
+      fetch('data/zones.json').then(r => r.json()),
+      fetch('data/vessels.json').then(r => r.json()),
+      fetch('data/events.json').then(r => r.json()),
+      fetch('data/stats.json').then(r => r.json()),
+      fetch('data/tracks.i16').then(r => r.arrayBuffer()),
+    ]);
+    S.zones = zones; S.vessels = vessels; S.events = events; S.stats = stats;
+    const a = new Int16Array(buf);
+    const n = a.length / 3;
+    const t = new Int16Array(n), lon = new Float32Array(n), lat = new Float32Array(n);
+    const [lon0, lat0] = vessels.origin;
+    for (let i = 0; i < n; i++) {
+      t[i] = a[3 * i];
+      lon[i] = lon0 + a[3 * i + 1] / vessels.scale;
+      lat[i] = lat0 + a[3 * i + 2] / vessels.scale;
+    }
+    // A segment "breaks" when the gap is over 60 minutes or the implied speed is over 40 knots.
+    const brk = new Uint8Array(n);
+    for (const v of vessels.vessels) {
+      const off = v[2], cnt = v[3];
+      brk[off] = 1;
+      for (let i = off + 1; i < off + cnt; i++) {
+        const dt = t[i] - t[i - 1];
+        const d = distKm(lon[i - 1], lat[i - 1], lon[i], lat[i]);
+        if (dt > 60 || d > 1.234 * Math.max(1, dt)) brk[i] = 1;
+      }
+    }
+    S.data = { n, t, lon, lat, brk };
+    S.ptr = new Int32Array(vessels.vessels.length);
+    S.counts = { res: new Int32Array(7), san: new Int32Array(7) };
+    buildLegend();
+    buildTicks();
+  }
+
+  function distKm(lo1, la1, lo2, la2) {
+    const dx = (lo2 - lo1) * KM_PER_DEG * Math.cos((la1 + la2) / 2 * Math.PI / 180);
+    const dy = (la2 - la1) * KM_PER_DEG;
+    return Math.hypot(dx, dy);
+  }
+
+  // ---------------------------------------------------------------- layout
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    S.dpr = Math.min(2, window.devicePixelRatio || 1);
+    S.W = Math.max(1, Math.round(r.width));
+    S.H = Math.max(1, Math.round(r.height));
+    canvas.width = Math.round(S.W * S.dpr);
+    canvas.height = Math.round(S.H * S.dpr);
+    const [lon0, lon1, lat0, lat1] = S.zones.bbox;
+    const cos = Math.cos(34 * Math.PI / 180);
+    const narrow = S.W < 760;
+    // Leave room for the title block and the time rule.
+    const padT = narrow ? 84 : 80, padB = narrow ? 98 : 100, padX = narrow ? 10 : 64;
+    const aw = S.W - 2 * padX, ah = S.H - padT - padB;
+    const s = Math.min(aw / ((lon1 - lon0) * cos), ah / (lat1 - lat0));
+    const w = (lon1 - lon0) * cos * s, h = (lat1 - lat0) * s;
+    const ox = padX + (aw - w) / 2, oy = padT + (ah - h) / 2;
+    S.proj = {
+      s, cos, lon0, lat0, lon1, lat1, ox, oy, w, h,
+      x: (lon) => ox + (lon - lon0) * cos * s,
+      y: (lat) => oy + h - (lat - lat0) * s,
+    };
+    S.hatch = makeHatch();
+    S.grain = makeGrain();
+    S.base = drawBase();
+    S.ink = makeLayer();
+    redrawInk(0, S.t);
+  }
+
+  function makeLayer() {
+    const c = document.createElement('canvas');
+    c.width = canvas.width; c.height = canvas.height;
+    const g = c.getContext('2d');
+    g.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    return c;
+  }
+
+  function makeHatch() {
+    const c = document.createElement('canvas');
+    c.width = 8; c.height = 8;
+    const g = c.getContext('2d');
+    g.strokeStyle = 'rgba(122,90,58,0.75)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(-2, 10); g.lineTo(10, -2); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke();
+    return ctx.createPattern(c, 'repeat');
+  }
+
+  function makeGrain() {
+    const c = document.createElement('canvas');
+    c.width = 200; c.height = 200;
+    const g = c.getContext('2d');
+    const img = g.createImageData(200, 200);
+    let seed = 7;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = rnd();
+      img.data[i] = 90; img.data[i + 1] = 70; img.data[i + 2] = 40;
+      img.data[i + 3] = v < 0.5 ? 0 : Math.floor((v - 0.5) * 36);
+    }
+    g.putImageData(img, 0, 0);
+    return ctx.createPattern(c, 'repeat');
+  }
+
+  // ---------------------------------------------------------------- static chart
+  function ringPath(g, rings, close) {
+    const P = S.proj;
+    for (const r of rings) {
+      for (let i = 0; i < r.length; i++) {
+        const x = P.x(r[i][0]), y = P.y(r[i][1]);
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      if (close !== false) g.closePath();
+    }
+  }
+
+  function onEdge(a, b) {
+    const P = S.proj;
+    const e = 1e-9;
+    return (Math.abs(a[0] - P.lon0) < e && Math.abs(b[0] - P.lon0) < e) ||
+           (Math.abs(a[0] - P.lon1) < e && Math.abs(b[0] - P.lon1) < e) ||
+           (Math.abs(a[1] - P.lat0) < e && Math.abs(b[1] - P.lat0) < e) ||
+           (Math.abs(a[1] - P.lat1) < e && Math.abs(b[1] - P.lat1) < e);
+  }
+
+  const FONT = (px, italic) => `${italic ? 'italic ' : ''}${px}px "IM Fell English", Georgia, serif`;
+
+  function drawBase() {
+    const Z = S.zones, P = S.proj;
+    const layer = makeLayer();
+    const g = layer.getContext('2d');
+    const W = S.W, H = S.H;
+    // Paper.
+    g.fillStyle = '#f3e9d2'; g.fillRect(0, 0, W, H);
+    g.fillStyle = S.grain; g.fillRect(0, 0, W, H);
+    const stain = g.createRadialGradient(W * 0.3, H * 0.4, 0, W * 0.3, H * 0.4, Math.max(W, H) * 0.8);
+    stain.addColorStop(0, 'rgba(255,250,235,0.25)'); stain.addColorStop(1, 'rgba(150,120,70,0.22)');
+    g.fillStyle = stain; g.fillRect(0, 0, W, H);
+
+    g.save();
+    g.beginPath(); g.rect(P.ox, P.oy, P.w, P.h); g.clip();
+    // Contour-like rings around the land.
+    for (const w of [52, 38, 26, 15]) {
+      g.beginPath(); ringPath(g, Z.coast);
+      g.lineJoin = 'round';
+      g.strokeStyle = 'rgba(111,143,176,0.38)'; g.lineWidth = w; g.stroke();
+      g.strokeStyle = '#f3e9d2'; g.lineWidth = w - 1.4; g.stroke();
+      g.fillStyle = S.grain; g.fill();
+    }
+    // Land.
+    g.beginPath(); ringPath(g, Z.coast);
+    g.fillStyle = '#e6d8b8'; g.fill();
+    g.fillStyle = S.grain; g.fill();
+    g.beginPath();
+    for (const r of Z.coast) {
+      for (let i = 0; i < r.length; i++) {
+        const a = r[i], b = r[(i + 1) % r.length];
+        if (onEdge(a, b)) continue;
+        g.moveTo(P.x(a[0]), P.y(a[1])); g.lineTo(P.x(b[0]), P.y(b[1]));
+      }
+    }
+    g.strokeStyle = '#4a3a28'; g.lineWidth = 1; g.lineCap = 'round'; g.stroke();
+    // Traffic lanes and related chart areas.
+    for (const l of Z.lanes) {
+      const tss = l.type.startsWith('Traffic Separation');
+      g.beginPath(); ringPath(g, l.rings);
+      g.setLineDash(tss ? [2, 3] : [1, 4]);
+      g.fillStyle = tss ? 'rgba(160,82,45,0.09)' : 'rgba(160,82,45,0.04)';
+      g.fill('evenodd');
+      g.strokeStyle = 'rgba(122,90,58,0.8)'; g.lineWidth = tss ? 0.9 : 0.6; g.stroke();
+      g.setLineDash([]);
+    }
+    // Sanctuary.
+    g.beginPath();
+    for (const s of Z.sanctuary) ringPath(g, s.rings);
+    g.fillStyle = 'rgba(43,94,168,0.06)'; g.fill('evenodd');
+    g.setLineDash([8, 4]); g.strokeStyle = '#2b5ea8'; g.lineWidth = 1.3; g.stroke(); g.setLineDash([]);
+    // Marine reserves, hatched.
+    g.beginPath();
+    for (const m of Z.mpas) ringPath(g, m.rings);
+    g.fillStyle = S.hatch; g.fill('evenodd');
+    g.strokeStyle = 'rgba(122,90,58,0.95)'; g.lineWidth = 0.9; g.stroke();
+    g.restore();
+
+    drawNeatline(g);
+    drawLabels(g);
+    drawCompass(g);
+    return layer;
+  }
+
+  function drawNeatline(g) {
+    const P = S.proj;
+    g.strokeStyle = '#2a2418'; g.lineWidth = 1;
+    g.strokeRect(P.ox, P.oy, P.w, P.h);
+    g.lineWidth = 0.6;
+    g.strokeRect(P.ox - 4, P.oy - 4, P.w + 8, P.h + 8);
+    g.fillStyle = '#2a2418';
+    g.font = FONT(S.W < 760 ? 9 : 11, false);
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    const step = S.W < 760 ? 1.0 : 0.5;
+    for (let lon = Math.ceil(P.lon0 * 10) / 10; lon <= P.lon1 + 1e-9; lon = Math.round((lon + 0.1) * 10) / 10) {
+      const x = P.x(lon);
+      const major = Math.abs(lon / step - Math.round(lon / step)) < 1e-6;
+      g.beginPath(); g.moveTo(x, P.oy + P.h); g.lineTo(x, P.oy + P.h + (major ? 4 : 2)); g.stroke();
+      g.beginPath(); g.moveTo(x, P.oy); g.lineTo(x, P.oy - (major ? 4 : 2)); g.stroke();
+      if (major) g.fillText(degLabel(-lon, 'W'), x, P.oy + P.h + 16);
+    }
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (let lat = Math.ceil(P.lat0 * 10) / 10; lat <= P.lat1 + 1e-9; lat = Math.round((lat + 0.1) * 10) / 10) {
+      const y = P.y(lat);
+      const major = Math.abs(lat / step - Math.round(lat / step)) < 1e-6;
+      g.beginPath(); g.moveTo(P.ox, y); g.lineTo(P.ox - (major ? 4 : 2), y); g.stroke();
+      g.beginPath(); g.moveTo(P.ox + P.w, y); g.lineTo(P.ox + P.w + (major ? 4 : 2), y); g.stroke();
+      if (major && S.W >= 760) g.fillText(degLabel(lat, 'N'), P.ox - 8, y);
+    }
+  }
+
+  function degLabel(v, hemi) {
+    const d = Math.floor(v + 1e-9), m = Math.round((v - d) * 60);
+    return m ? `${d}°${String(m).padStart(2, '0')}′${hemi}` : `${d}°${hemi}`;
+  }
+
+  // Place names are chart annotations. They are not part of the data set.
+  // The last field says whether the label also appears on a narrow screen.
+  const NAMES = [
+    ['Point Conception', -120.47, 34.46, 'right', 0, false],
+    ['Santa Barbara', -119.70, 34.44, 'center', 0, false],
+    ['Ventura', -119.27, 34.30, 'left', 0, false],
+    ['Santa Barbara Channel', -119.95, 34.21, 'center', -17, true],
+    ['SAN MIGUEL I.', -120.37, 33.96, 'center', 0, false],
+    ['SANTA ROSA I.', -120.14, 33.84, 'center', 0, false],
+    ['SANTA CRUZ I.', -119.70, 33.90, 'center', 0, false],
+    ['ANACAPA I.', -119.31, 34.06, 'left', 0, false],
+    ['SANTA BARBARA I.', -119.03, 33.42, 'center', 0, false],
+    ['SANTA CATALINA I.', -118.55, 33.33, 'right', 0, true],
+    ['Port of Los Angeles', -118.36, 33.70, 'right', 0, false],
+    ['Channel Islands National Marine Sanctuary', -120.1, 33.68, 'center', 0, true],
+  ];
+
+  function drawLabels(g) {
+    const P = S.proj;
+    const narrow = S.W < 760;
+    g.fillStyle = '#4a3a28';
+    g.textBaseline = 'middle';
+    for (const [name, lon, lat, align, rot, small] of NAMES) {
+      const upper = name === name.toUpperCase();
+      const big = name.indexOf('Sanctuary') >= 0;
+      if (narrow && !small) continue;
+      let px = big ? 13 : upper ? 10.5 : 11;
+      if (narrow) px -= 2.5;
+      g.font = FONT(px, !upper);
+      g.textAlign = align;
+      g.save();
+      g.translate(P.x(big && narrow ? -119.95 : lon), P.y(big && narrow ? 33.6 : lat));
+      g.rotate(rot * Math.PI / 180);
+      if (big) {
+        g.fillStyle = 'rgba(43,94,168,0.85)';
+        const spaced = (t) => t.toUpperCase().split('').join(String.fromCharCode(8202));
+        if (narrow) {
+          g.fillText(spaced('Channel Islands'), 0, -6);
+          g.fillText(spaced('National Marine Sanctuary'), 0, 6);
+        } else {
+          g.fillText(spaced(name), 0, 0);
+        }
+        g.fillStyle = '#4a3a28';
+      } else {
+        g.fillText(name, 0, 0);
+      }
+      g.restore();
+    }
+  }
+
+  function drawCompass(g) {
+    const P = S.proj;
+    const narrow = S.W < 760;
+    const r = narrow ? 22 : Math.min(44, P.w * 0.045);
+    const cx = P.x(-120.9) + (narrow ? 4 : 0), cy = P.y(narrow ? 33.46 : 33.52);
+    g.save();
+    g.translate(cx, cy);
+    g.strokeStyle = '#4a3a28'; g.fillStyle = '#4a3a28'; g.lineWidth = 0.8;
+    g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(0, 0, r * 0.78, 0, Math.PI * 2); g.stroke();
+    for (let i = 0; i < 32; i++) {
+      const a = i * Math.PI / 16;
+      const len = i % 8 === 0 ? 0 : i % 4 === 0 ? 0.1 : 0.05;
+      g.beginPath(); g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      g.lineTo(Math.cos(a) * r * (1 - len - 0.03), Math.sin(a) * r * (1 - len - 0.03)); g.stroke();
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4 - Math.PI / 2;
+      const L = i % 2 === 0 ? r * 1.18 : r * 0.72, wdt = r * 0.16;
+      g.beginPath();
+      g.moveTo(Math.cos(a) * L, Math.sin(a) * L);
+      g.lineTo(Math.cos(a + Math.PI / 2) * wdt, Math.sin(a + Math.PI / 2) * wdt);
+      g.lineTo(0, 0); g.closePath();
+      g.fillStyle = i % 2 === 0 ? '#4a3a28' : '#f3e9d2'; g.fill(); g.stroke();
+      g.beginPath();
+      g.moveTo(Math.cos(a) * L, Math.sin(a) * L);
+      g.lineTo(Math.cos(a - Math.PI / 2) * wdt, Math.sin(a - Math.PI / 2) * wdt);
+      g.lineTo(0, 0); g.closePath();
+      g.fillStyle = '#f3e9d2'; g.fill(); g.stroke();
+    }
+    g.fillStyle = '#2a2418'; g.font = FONT(narrow ? 10 : 13, false);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('N', 0, -r * 1.42);
+    g.restore();
+  }
+
+  // ---------------------------------------------------------------- ink layer
+  function strokeSeg(g, i0, i1, cls) {
+    // Draw points i0..i1 (inclusive) of one vessel as segments.
+    const D = S.data, P = S.proj;
+    g.strokeStyle = S.vessels.colors[cls];
+    g.beginPath();
+    let open = false;
+    for (let i = i0; i <= i1; i++) {
+      const x = P.x(D.lon[i]), y = P.y(D.lat[i]);
+      if (D.brk[i] || !open) { g.moveTo(x, y); open = true; } else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+
+  function redrawInk(from, to) {
+    const g = S.ink.getContext('2d');
+    if (from === 0) g.clearRect(0, 0, S.W, S.H);
+    g.save();
+    g.beginPath(); g.rect(S.proj.ox, S.proj.oy, S.proj.w, S.proj.h); g.clip();
+    g.globalAlpha = 0.42; g.lineWidth = 1.2; g.lineJoin = 'round'; g.lineCap = 'round';
+    const D = S.data, V = S.vessels.vessels;
+    for (let v = 0; v < V.length; v++) {
+      const off = V[v][2], end = off + V[v][3] - 1;
+      let i = off;
+      while (i <= end && D.t[i] <= to) i++;
+      const last = i - 1;
+      if (last > off) strokeSeg(g, off, last, V[v][0]);
+      S.ptr[v] = Math.max(off, last);
+    }
+    g.restore();
+  }
+
+  function advanceInk(tPrev, tNow) {
+    const g = S.ink.getContext('2d');
+    g.save();
+    g.beginPath(); g.rect(S.proj.ox, S.proj.oy, S.proj.w, S.proj.h); g.clip();
+    g.globalAlpha = 0.42; g.lineWidth = 1.2; g.lineJoin = 'round'; g.lineCap = 'round';
+    const D = S.data, V = S.vessels.vessels;
+    for (let v = 0; v < V.length; v++) {
+      const off = V[v][2], end = off + V[v][3] - 1;
+      let i = S.ptr[v];
+      if (i >= end || D.t[i + 1] > tNow) continue;
+      const start = i;
+      while (i < end && D.t[i + 1] <= tNow) i++;
+      strokeSeg(g, start, i, V[v][0]);
+      S.ptr[v] = i;
+    }
+    g.restore();
+  }
+
+  // ---------------------------------------------------------------- events and counters
+  function resetCounters(t) {
+    S.counts.res.fill(0); S.counts.san.fill(0);
+    const E = S.events, V = S.vessels.vessels;
+    let i = 0;
+    while (i < E.length && E[i][0] <= t) {
+      const cls = V[E[i][1]][0];
+      if (E[i][2] === 1) S.counts.res[cls]++;
+      else if (E[i][2] === 0) S.counts.san[cls]++;
+      i++;
+    }
+    S.ei = i;
+    S.rings.length = 0;
+    updateLog();
+  }
+
+  function consumeEvents(tNow, audible) {
+    const E = S.events, V = S.vessels.vessels, D = S.data;
+    let fired = 0;
+    while (S.ei < E.length && E[S.ei][0] <= tNow) {
+      const [t, vi, kind, zi] = E[S.ei];
+      const cls = V[vi][0], len = V[vi][1];
+      if (kind === 1) S.counts.res[cls]++;
+      else if (kind === 0) S.counts.san[cls]++;
+      // Position of the event: the vessel point at time t.
+      const off = V[vi][2], end = off + V[vi][3] - 1;
+      let i = off;
+      while (i < end && D.t[i] < t) i++;
+      const lon = D.lon[i], lat = D.lat[i];
+      if (kind === 1 || kind === 0) S.rings.push({ x: S.proj.x(lon), y: S.proj.y(lat), born: performance.now(), kind, cls });
+      if (audible && fired < 10) {
+        const pan = Math.max(-1, Math.min(1, ((lon - S.proj.lon0) / (S.proj.lon1 - S.proj.lon0) - 0.5) * 1.8));
+        if (kind === 1) { ping(cls, pan, 1); fired++; }
+        else if (kind === 0) { ping(cls, pan, 0.5); fired++; }
+        else if (kind === 2 && len >= 200) { foghorn(pan); fired++; }
+      }
+      S.ei++;
+    }
+    if (S.ei > 0 && S.ei % 8 === 0) updateLog();
+  }
+
+  function updateLog() {
+    const tb = $('#log tbody');
+    if (!tb.children.length) return;
+    const rows = tb.children;
+    let totalRes = 0, totalSan = 0;
+    for (let c = 0; c < 7; c++) {
+      rows[c].children[2].textContent = S.counts.res[c];
+      rows[c].children[3].textContent = S.counts.san[c];
+      totalRes += S.counts.res[c]; totalSan += S.counts.san[c];
+    }
+    $('#logfoot').textContent = `${totalRes} reserve entries and ${totalSan} sanctuary entries so far. ` +
+      `Over the four days: ${S.stats.entries.mpa_total} and ${S.stats.entries.sanctuary}.`;
+  }
+
+  function buildLegend() {
+    const tb = $('#log tbody');
+    const C = S.vessels.classes, K = S.vessels.colors;
+    const labels = { other: 'Other', cargo: 'Cargo', tanker: 'Tanker', passenger: 'Passenger', fishing: 'Fishing', tug: 'Tug and tow', pleasure: 'Pleasure' };
+    tb.innerHTML = C.map((c, i) =>
+      `<tr><td><span class="sw" style="background:${K[i]}"></span>${labels[c]}</td><td>${S.stats.vessels_by_class[i]}</td><td>0</td><td>0</td></tr>`
+    ).join('');
+    updateLog();
+  }
+
+  function buildTicks() {
+    const el = $('#ticks');
+    const days = ['Thu 15', 'Fri 16', 'Sat 17', 'Sun 18'];
+    el.innerHTML = days.map((d, i) => `<span style="left:${(i * 1440 + 720) / MINUTES * 100}%">${d} June</span>`).join('') +
+      `<span style="left:0%"></span><span style="left:100%"></span>`;
+  }
+
+  // ---------------------------------------------------------------- frame
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!S.data || !S.proj) return;
+    const dt = Math.min(0.1, (now - S.lastFrame) / 1000 || 0);
+    S.lastFrame = now;
+    if (S.playing) {
+      const tPrev = S.t;
+      S.t = Math.min(MINUTES - 1, S.t + dt * S.rate);
+      if (S.t >= MINUTES - 1) { S.t = 0; redrawInk(0, 0); resetCounters(0); }
+      else { advanceInk(tPrev, S.t); consumeEvents(S.t, true); }
+      scrub.value = Math.floor(S.t);
+    }
+    S.drift += dt;
+    render(now);
+    updateClock();
+    updateBed();
+  }
+
+  function render(now) {
+    const D = S.data, V = S.vessels.vessels, P = S.proj;
+    ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    ctx.drawImage(S.base, 0, 0, S.W, S.H);
+    // Slow drift of the ink: the chart breathes like a sheet on a table.
+    const dx = Math.sin(S.drift * 0.21) * 1.2, dy = Math.cos(S.drift * 0.17) * 1.2;
+    ctx.drawImage(S.ink, dx, dy, S.W, S.H);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(P.ox, P.oy, P.w, P.h); ctx.clip();
+    ctx.translate(dx, dy);
+    // Sonar rings.
+    for (let k = S.rings.length - 1; k >= 0; k--) {
+      const r = S.rings[k];
+      const age = (now - r.born) / 1000;
+      if (age > 2.4) { S.rings.splice(k, 1); continue; }
+      const rad = 4 + age * (r.kind === 1 ? 22 : 12);
+      ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+      ctx.strokeStyle = r.kind === 1 ? S.vessels.colors[r.cls] : '#2b5ea8';
+      ctx.globalAlpha = Math.max(0, 0.7 - age / 2.6); ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Vessel marks.
+    let active = 0;
+    const t = S.t;
+    for (let v = 0; v < V.length; v++) {
+      const off = V[v][2], end = off + V[v][3] - 1;
+      const i = S.ptr[v];
+      if (i >= end) continue;
+      const t0 = D.t[i], t1 = D.t[i + 1];
+      if (t < t0 || t1 - t0 > 60 || D.brk[i + 1]) continue;
+      const f = t1 === t0 ? 0 : (t - t0) / (t1 - t0);
+      const lon = D.lon[i] + (D.lon[i + 1] - D.lon[i]) * f;
+      const lat = D.lat[i] + (D.lat[i + 1] - D.lat[i]) * f;
+      const x = P.x(lon), y = P.y(lat);
+      const ang = Math.atan2(P.y(D.lat[i + 1]) - P.y(D.lat[i]), P.x(D.lon[i + 1]) - P.x(D.lon[i]));
+      const big = V[v][1] >= 200;
+      const L = big ? 7 : 4.5, Wd = big ? 2.6 : 1.8;
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(ang);
+      ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(-L * 0.6, Wd); ctx.lineTo(-L * 0.3, 0); ctx.lineTo(-L * 0.6, -Wd); ctx.closePath();
+      ctx.fillStyle = S.vessels.colors[V[v][0]]; ctx.fill();
+      ctx.restore();
+      // Count a vessel as under way when its implied speed is over 1 knot.
+      const kn = distKm(D.lon[i], D.lat[i], D.lon[i + 1], D.lat[i + 1]) / Math.max(1, t1 - t0) * 32.4;
+      if (kn > 1) active++;
+    }
+    ctx.restore();
+    S.active = active;
+  }
+
+  function updateClock() {
+    const d = new Date(T0 + Math.floor(S.t) * 60000);
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    clock.textContent = `${days[d.getUTCDay()]} ${d.getUTCDate()} June 2023 · ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC · ${S.active || 0} under way`;
+  }
+
+  // ---------------------------------------------------------------- controls
+  function seek(t) {
+    S.t = Math.max(0, Math.min(MINUTES - 1, t));
+    redrawInk(0, S.t);
+    resetCounters(S.t);
+  }
+  scrub.addEventListener('input', () => seek(+scrub.value));
+  playBtn.addEventListener('click', () => {
+    S.playing = !S.playing;
+    playBtn.textContent = S.playing ? 'Pause' : 'Play';
+    if (S.audio && S.audio.ctx.state === 'suspended') S.audio.ctx.resume();
+  });
+  document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => {
+    S.rate = +b.dataset.rate;
+    document.querySelectorAll('[data-rate]').forEach(o => o.setAttribute('aria-pressed', o === b ? 'true' : 'false'));
+  }));
+  window.addEventListener('resize', () => { if (S.zones) { resize(); resetCounters(S.t); } });
+
+  // ---------------------------------------------------------------- sound
+  const PITCH = [660, 392, 330, 523, 587, 440, 784];  // by class index: other, cargo, tanker, passenger, fishing, tug, pleasure
+
+  function setupAudio(ac, master) {
+    if (!ac) return;
+    const bus = ac.createGain(); bus.gain.value = 0.9;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.5;
+    bus.connect(lp); lp.connect(master);
+    // Reverb from a generated noise impulse response.
+    const conv = ac.createConvolver();
+    const len = Math.floor(ac.sampleRate * 2.6);
+    const ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6) * 0.5;
+    }
+    conv.buffer = ir;
+    const wet = ac.createGain(); wet.gain.value = 0.4;
+    bus.connect(conv); conv.connect(wet); wet.connect(lp);
+    // Wave bed: looped noise through a low-pass filter, level follows active vessels.
+    const nlen = ac.sampleRate * 4;
+    const nb = ac.createBuffer(2, nlen, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = nb.getChannelData(ch);
+      let b0 = 0, b1 = 0;
+      for (let i = 0; i < nlen; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = 0.985 * b0 + w * 0.03; b1 = 0.95 * b1 + b0 * 0.5;
+        d[i] = b1 * 3.5;
+      }
+    }
+    const src = ac.createBufferSource(); src.buffer = nb; src.loop = true;
+    const bf = ac.createBiquadFilter(); bf.type = 'lowpass'; bf.frequency.value = 420; bf.Q.value = 0.7;
+    const bed = ac.createGain(); bed.gain.value = 0.0;
+    const swell = ac.createGain(); swell.gain.value = 1;
+    const lfo = ac.createOscillator(); lfo.frequency.value = 0.07;
+    const lfoG = ac.createGain(); lfoG.gain.value = 0.35;
+    lfo.connect(lfoG); lfoG.connect(swell.gain);
+    src.connect(bf); bf.connect(bed); bed.connect(swell); swell.connect(lp);
+    src.start(); lfo.start();
+    S.audio = { ctx: ac, bus, bed, lastHorn: 0, lastPing: 0 };
+  }
+
+  function ping(cls, pan, level) {
+    const A = S.audio; if (!A) return;
+    const ac = A.ctx, now = ac.currentTime;
+    if (now - A.lastPing < 0.04) return;
+    A.lastPing = now;
+    const o = ac.createOscillator(); o.type = 'sine';
+    const f = PITCH[cls] * (level < 1 ? 0.5 : 1);
+    o.frequency.setValueAtTime(f * 1.04, now);
+    o.frequency.exponentialRampToValueAtTime(f, now + 0.25);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.16 * level, now + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    const p = ac.createStereoPanner(); p.pan.value = pan;
+    o.connect(g); g.connect(p); p.connect(A.bus);
+    o.start(now); o.stop(now + 1.0);
+  }
+
+  function foghorn(pan) {
+    const A = S.audio; if (!A) return;
+    const ac = A.ctx, now = ac.currentTime;
+    if (now - A.lastHorn < 2.5) return;
+    A.lastHorn = now;
+    const o1 = ac.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 62;
+    const o2 = ac.createOscillator(); o2.type = 'sine'; o2.frequency.value = 124;
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 1.2;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.22, now + 0.5);
+    g.gain.setValueAtTime(0.22, now + 1.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 2.4);
+    const p = ac.createStereoPanner(); p.pan.value = pan * 0.6;
+    o1.connect(f); o2.connect(f); f.connect(g); g.connect(p); p.connect(A.bus);
+    o1.start(now); o2.start(now); o1.stop(now + 2.5); o2.stop(now + 2.5);
+  }
+
+  function updateBed() {
+    const A = S.audio; if (!A) return;
+    const target = S.playing ? 0.025 + 0.11 * Math.min(1, (S.active || 0) / 70) : 0.01;
+    A.bed.gain.setTargetAtTime(target, A.ctx.currentTime, 0.8);
+  }
+
+  // ---------------------------------------------------------------- start
+  const ready = load().catch(e => { console.warn('data load failed', e); });
+  Gallery.mount({
+    slug: 'ships-and-borders',
+    title: 'Ships at the Border',
+    blurb: 'Four days of ship tracks around the Channel Islands marine sanctuary, drawn as ink on a nautical chart. Sonar pings mark entries into marine reserves, and a foghorn marks large ships that enter the traffic lanes.',
+    onStart(ac, master) {
+      setupAudio(ac, master);
+      const fonts = (document.fonts && document.fonts.load) ? document.fonts.load('12px "IM Fell English"').catch(() => null) : Promise.resolve();
+      Promise.all([ready, fonts]).then(() => {
+        if (!S.data) return;
+        resize();
+        resetCounters(0);
+        S.lastFrame = performance.now();
+        requestAnimationFrame(frame);
+      });
+    },
+  });
+})();
+</script>
+</body>
+</html>

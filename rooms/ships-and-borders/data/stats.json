@@ -1,0 +1,100 @@
+{
+ "days": [
+  "2023_06_15",
+  "2023_06_16",
+  "2023_06_17",
+  "2023_06_18"
+ ],
+ "rows_read": 34634406,
+ "rows_in_bbox": 1007088,
+ "vessels_in_bbox": 986,
+ "points_after_5min": 466215,
+ "points_after_thinning": 126438,
+ "vessels_dropped_short": 103,
+ "vessels_dropped_still": 261,
+ "vessels_kept": 622,
+ "points_kept": 85418,
+ "vessels_200m_plus": 62,
+ "classes": [
+  "other",
+  "cargo",
+  "tanker",
+  "passenger",
+  "fishing",
+  "tug",
+  "pleasure"
+ ],
+ "vessels_by_class": [
+  51,
+  67,
+  31,
+  72,
+  24,
+  43,
+  334
+ ],
+ "points_by_class": [
+  8102,
+  12585,
+  4206,
+  13757,
+  2557,
+  11840,
+  32371
+ ],
+ "entries_by_class": {
+  "sanctuary": [
+   8,
+   46,
+   4,
+   55,
+   10,
+   12,
+   74
+  ],
+  "mpa": [
+   57,
+   48,
+   4,
+   191,
+   32,
+   20,
+   299
+  ],
+  "lanes": [
+   102,
+   81,
+   19,
+   273,
+   45,
+   48,
+   250
+  ]
+ },
+ "share_in_sanctuary_by_class": [
+  0.0153,
+  0.075,
+  0.0155,
+  0.1357,
+  0.1545,
+  0.0115,
+  0.1057
+ ],
+ "share_in_lanes_by_class": [
+  0.1153,
+  0.5357,
+  0.1983,
+  0.109,
+  0.1193,
+  0.0678,
+  0.061
+ ],
+ "entries": {
+  "sanctuary": 209,
+  "lanes": 818,
+  "mpa_total": 651
+ },
+ "n_events": 1678,
+ "n_mpas": 44,
+ "n_mpa_groups": 32
+}
