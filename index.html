@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thirteen Rooms</title>
+<meta name="description" content="A gallery of animated, sonified visualizations of public data sets. Each room has its own style.">
+<style>
+  :root{--bg:#f4f1ea;--ink:#1b1b1b;--muted:#6b665c;--line:#d8d2c4;--card:#fffdf8}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#121110;--ink:#f1ede4;--muted:#a39d91;--line:#2c2924;--card:#1b1917}}
+  :root[data-theme="dark"]{--bg:#121110;--ink:#f1ede4;--muted:#a39d91;--line:#2c2924;--card:#1b1917}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;line-height:1.45}
+  header{padding:64px 16px 24px;max-width:1100px;margin:0 auto}
+  h1{font-size:clamp(34px,6vw,72px);font-weight:400;letter-spacing:-.02em;margin:0 0 12px}
+  header p{max-width:620px;color:var(--muted);font-size:17px;margin:0}
+  main{max-width:1100px;margin:0 auto;padding:16px 16px 80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+  a.room{display:block;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;color:inherit;text-decoration:none;transition:transform .25s ease,box-shadow .25s ease}
+  a.room:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,.14)}
+  .thumb{aspect-ratio:16/10;background:#222 center/cover no-repeat;display:block;width:100%;object-fit:cover}
+  .meta{padding:14px 16px 18px}
+  .num{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);letter-spacing:.08em}
+  .meta h2{font-size:21px;font-weight:400;margin:4px 0 6px}
+  .meta p{margin:0;font-size:14px;color:var(--muted)}
+  footer{max-width:1100px;margin:0 auto;padding:0 16px 48px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Thirteen Rooms</h1>
+  <p>Each room takes one public data set that was easy to find and hard to use, and turns it into motion and sound. Click a room, then click to enter. Every room has its own style.</p>
+</header>
+<main id="rooms"></main>
+<footer>Built from public data only. Each room documents its source, its sampling, and its sound mapping in a README.</footer>
+<script>
+fetch('rooms.json').then(r => r.json()).then(rooms => {
+  const main = document.getElementById('rooms');
+  rooms.forEach((r, i) => {
+    const a = document.createElement('a');
+    a.className = 'room';
+    a.href = `rooms/${r.slug}/index.html`;
+    a.innerHTML = `<img class="thumb" src="rooms/${r.slug}/preview.svg" alt="" onerror="this.style.background='#333'">
+      <div class="meta"><div class="num">ROOM ${String(i + 1).padStart(2, '0')}</div><h2>${r.title}</h2><p>${r.idea}</p></div>`;
+    main.appendChild(a);
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Thirteen Rooms
+
+A gallery of animated and sonified visualizations. Each room uses one public data set. Each room has its own visual style and its own sound design.
+
+## Layout
+
+- `index.html` is the gallery hub. It reads `rooms.json`.
+- `rooms/<slug>/` holds one room: `index.html`, `preview.svg`, `README.md`, and `data/` with processed files.
+- `pipelines/<slug>/` holds the Python scripts that fetch and process the data for that room.
+- `shared/room.js` gives each room the entry overlay, the navigation chip, and the sound toggle.
+- `tools/shot.py` opens a room in headless Chromium and saves a screenshot.
+- `data/raw/` holds raw downloads. Git ignores this directory.
+
+## Run
+
+Start a local server from the repository root and open the hub:
+
+```
+.venv/bin/python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/`.
+
+## Rebuild a room's data
+
+```
+.venv/bin/python3 -I pipelines/<slug>/fetch.py
+.venv/bin/python3 -I pipelines/<slug>/process.py
+```
+
+Each room README documents the source, the sampling, and the sound mapping.

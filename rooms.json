@@ -1,0 +1,15 @@
+[
+  {"slug": "grid-flow", "title": "The Grid Breathes", "idea": "Hourly power flow between US balancing authorities (EIA-930)", "style": "Control room: dark surface, phosphor green and amber, monospace, particle flow map"},
+  {"slug": "ships-and-borders", "title": "Ships at the Border", "idea": "Vessel tracks (NOAA AIS) at the edges of marine protected areas", "style": "Nautical chart: cream paper, blue ink, hatching, slow drift, sonar sound"},
+  {"slug": "commute-bloodstream", "title": "The Commute Bloodstream", "idea": "Origin-destination job flows (Census LODES) as particle streams", "style": "Swiss minimal: white, black, one accent, grid typography, crowd texture sound"},
+  {"slug": "ship-logbooks", "title": "Four Centuries of Logbooks", "idea": "Marine observations from ship logbooks (ICOADS, CLIWOC) as a time-lapse", "style": "Aged paper and pen plot: sepia, serif, year counter, wind and creak sound"},
+  {"slug": "local-news", "title": "What the County Worried About", "idea": "Front-page topics by region and decade (Chronicling America)", "style": "Newsprint: halftone, black, white and red, typewriter motion and press sound"},
+  {"slug": "court-galaxy", "title": "The Citation Galaxy", "idea": "Federal court opinion citations (CourtListener) as a force graph", "style": "Night sky: navy, gold constellations, drone and plucked notes"},
+  {"slug": "complaint-wall", "title": "The Complaint Wall", "idea": "Clustered consumer complaints (NHTSA, CFPB) as a heatmap", "style": "Brutalist: huge type, hard edges, high contrast, glitch motion, industrial sound"},
+  {"slug": "milky-way", "title": "A Million Neighbors", "idea": "Nearby stars from ESA Gaia as a 3D point cloud", "style": "Deep space: WebGL point cloud, true star colors, spatial sparkle sound"},
+  {"slug": "bird-radar", "title": "Birds on the Radar", "idea": "Nightly bird migration seen by NEXRAD weather radar", "style": "Radar scope: circular sweep, green on black, night chorus sound"},
+  {"slug": "wiki-attention", "title": "Where Curiosity Goes", "idea": "Reader paths between Wikipedia articles (Clickstream)", "style": "Playful: bright pastel, rounded shapes, bouncy easing, marimba sound"},
+  {"slug": "patent-drift", "title": "Where Ideas Come From", "idea": "Patent citation flow between technology fields (PatentsView)", "style": "Blueprint: white lines on blue, drafted streamgraph, pencil sound"},
+  {"slug": "builder-market", "title": "The Builder Market", "idea": "Ethereum block builder share per slot as a time-lapse", "style": "Terminal ticker: neon on black, ridge plot, synth arpeggio"},
+  {"slug": "bridge-flows", "title": "Liquidity in Motion", "idea": "Cross-chain bridge volume as an animated chord diagram", "style": "Glass: soft gradients, blur, glossy shapes, chime sound"}
+]
