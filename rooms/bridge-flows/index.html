@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquidity in Motion</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/outfit@5.2.5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/outfit@5.2.5/600.css">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  :root {
+    --ink: #1f2140;
+    --ink-2: #5a5d7a;
+    --ink-3: #8b8ea8;
+    --glass: rgba(255, 255, 255, 0.52);
+    --glass-strong: rgba(255, 255, 255, 0.72);
+    --edge: rgba(255, 255, 255, 0.85);
+    --shadow: 0 12px 34px rgba(84, 96, 170, 0.14), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    --c-l1: #2a78d6;
+    --c-l2: #eb6834;
+    --c-other: #1baf7a;
+    --c-hub: #6250d6;
+    --radius: 24px;
+    --ease: cubic-bezier(.22, .61, .36, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: 'Outfit', 'Manrope', system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(135deg, #eef2ff 0%, #fdf2f8 50%, #ecfeff 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Soft pastel blobs behind the glass. */
+  .blob {
+    position: fixed; border-radius: 50%; filter: blur(70px); opacity: .6; z-index: -1;
+    animation: drift 26s var(--ease) infinite alternate;
+    pointer-events: none;
+  }
+  .blob.a { width: 46vw; height: 46vw; background: #c7d2fe; left: -10vw; top: -12vw; }
+  .blob.b { width: 40vw; height: 40vw; background: #fbcfe8; right: -8vw; top: 30vh; animation-delay: -9s; }
+  .blob.c { width: 36vw; height: 36vw; background: #a5f3fc; left: 30vw; bottom: -14vw; animation-delay: -17s; }
+  @keyframes drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(6vw, 4vh) scale(1.12); } }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 16px 16px 84px; }
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  header.top { padding: 18px 22px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+  header.top h1 { margin: 0; font-size: clamp(22px, 3vw, 32px); font-weight: 600; letter-spacing: -0.01em; }
+  header.top p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.45; max-width: 760px; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; margin-top: 16px; }
+  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; padding: 12px; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .stage svg { display: block; width: 100%; height: auto; max-width: 700px; }
+  .stage .month-badge {
+    position: absolute; left: 18px; top: 16px; padding: 7px 14px; border-radius: 999px;
+    background: var(--glass-strong); border: 1px solid var(--edge); font-size: 14px; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(84, 96, 170, 0.1);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 6px 4px 4px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+    background: var(--glass-strong); border: 1px solid var(--edge); font-size: 12px; color: var(--ink);
+    box-shadow: 0 2px 8px rgba(84, 96, 170, 0.08); cursor: default; transition: transform .3s var(--ease), box-shadow .3s;
+  }
+  .chip:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(84, 96, 170, 0.16); }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .chip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .hero { padding: 20px 22px; }
+  .hero .label { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+  .hero .num { font-size: clamp(38px, 5vw, 52px); font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; margin-top: 4px; }
+  .hero .sub { font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+  .bridges { padding: 16px 18px 12px; }
+  .bridges h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+  .row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 64px; gap: 8px; align-items: center; padding: 5px 0; font-size: 13px; }
+  .row .rk { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .row .nm { overflow: hidden; }
+  .row .nm span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .bar { height: 6px; border-radius: 999px; background: linear-gradient(90deg, #c7d2fe, #a5b4fc); margin-top: 4px; transition: width .7s var(--ease); box-shadow: 0 1px 0 rgba(255,255,255,.8) inset; }
+  .row .bar.pair { background: linear-gradient(90deg, #bfe6ff, #7cc4f5); }
+  .row .bar.multi { background: linear-gradient(90deg, #d9d2ff, #a99bf0); }
+  .row .vl { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .bridges .note { font-size: 11px; color: var(--ink-3); margin-top: 8px; line-height: 1.4; }
+  .bridges .note i { display: inline-block; width: 10px; height: 6px; border-radius: 999px; vertical-align: middle; margin-right: 4px; }
+
+  .controls { margin-top: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-radius: 999px; }
+  .pill {
+    appearance: none; border: 1px solid var(--edge); background: var(--glass-strong); color: var(--ink);
+    font: inherit; font-weight: 600; font-size: 13px; border-radius: 999px; padding: 9px 16px; cursor: pointer;
+    box-shadow: 0 3px 12px rgba(84, 96, 170, 0.12), 0 1px 0 rgba(255,255,255,.9) inset; transition: transform .25s var(--ease), box-shadow .25s;
+    min-width: 44px;
+  }
+  .pill:hover { transform: translateY(-1px); box-shadow: 0 7px 18px rgba(84, 96, 170, 0.18), 0 1px 0 rgba(255,255,255,.9) inset; }
+  .pill:active { transform: translateY(0); }
+  .pill.play { min-width: 92px; }
+  .scrub { flex: 1 1 200px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .scrub input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #c7d2fe, #fbcfe8, #a5f3fc); border: 1px solid var(--edge); outline: none; min-width: 0; }
+  .scrub input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,.95); border: 1px solid rgba(255,255,255,1); box-shadow: 0 3px 10px rgba(84, 96, 170, 0.25); cursor: pointer; }
+  .scrub input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 1px solid #fff; box-shadow: 0 3px 10px rgba(84, 96, 170, 0.25); cursor: pointer; }
+  .scrub .ends { font-size: 11px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .legend { margin-top: 16px; padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+  .legend h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+  .legend .sw { display: flex; flex-direction: column; gap: 5px; }
+  .legend .sw div { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+  .legend .sw i { width: 22px; height: 12px; border-radius: 6px; display: inline-block; box-shadow: 0 1px 0 rgba(255,255,255,.9) inset; border: 1px solid rgba(255,255,255,.8); }
+  footer { margin-top: 14px; font-size: 12px; color: var(--ink-3); padding: 0 8px; line-height: 1.6; }
+  footer a, .legend a { color: var(--ink-2); }
+
+  .tip {
+    position: fixed; pointer-events: none; z-index: 50; padding: 8px 12px; border-radius: 14px; font-size: 12px; line-height: 1.4;
+    background: var(--glass-strong); border: 1px solid var(--edge); box-shadow: 0 8px 24px rgba(84, 96, 170, 0.18);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); opacity: 0; transition: opacity .2s; max-width: 240px; color: var(--ink);
+  }
+  .tip.on { opacity: 1; }
+  .tip b { font-weight: 600; }
+
+  /* Chord marks */
+  .arc { stroke: #fff; stroke-opacity: .9; stroke-width: 1.2; filter: url(#tileShadow); transition: opacity .35s var(--ease); }
+  .ribbon { stroke: #fff; stroke-opacity: .6; stroke-width: .8; transition: opacity .35s var(--ease); }
+  .lbl { font-size: 11px; fill: var(--ink); pointer-events: none; }
+  @media (max-width: 600px) {
+    .wrap { padding: 10px 10px 80px; }
+    header.top { padding: 14px 16px; }
+    .stage { padding: 8px 4px; }
+    .stage .month-badge { left: 10px; top: 10px; font-size: 12px; padding: 5px 10px; }
+    .lbl { font-size: 10px; }
+    .hero { padding: 16px 18px; }
+    .controls { padding: 8px 10px; gap: 8px; }
+    .pill { padding: 8px 12px; font-size: 12px; }
+    .pill.play { min-width: 80px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+</style>
+</head>
+<body>
+<div class="blob a"></div><div class="blob b"></div><div class="blob c"></div>
+<div class="wrap">
+  <header class="glass top">
+    <h1>Liquidity in Motion</h1>
+    <p id="caption">Each ribbon is bridge volume that moved between two networks in one month. The arrow end of a ribbon points to the destination. A chime sounds for each network whose volume grew, and the soft pad follows the total.</p>
+  </header>
+  <main>
+    <section class="stage glass">
+      <div class="month-badge" id="monthBadge">…</div>
+      <svg id="chord" role="img" aria-label="Chord diagram of monthly bridge volume between networks"></svg>
+      <div class="chips" id="chips"></div>
+    </section>
+    <aside>
+      <div class="hero glass">
+        <div class="label">Bridged this month</div>
+        <div class="num" id="heroNum">$0</div>
+        <div class="sub" id="heroSub">across all tracked bridges</div>
+      </div>
+      <div class="bridges glass">
+        <h2>Bridges this month</h2>
+        <div id="bridgeList"></div>
+        <div class="note"><i style="background:#7cc4f5"></i>pair bridge (two networks) &nbsp; <i style="background:#a99bf0"></i>multi-chain bridge (shown through the hub)</div>
+      </div>
+    </aside>
+  </main>
+  <div class="controls glass">
+    <button class="pill play" id="playBtn" aria-label="Pause">Pause</button>
+    <button class="pill" id="prevBtn" aria-label="Previous month">&#8249;</button>
+    <div class="scrub">
+      <span class="ends" id="startLbl"></span>
+      <input type="range" id="scrub" min="0" max="23" step="1" value="0" aria-label="Month">
+      <span class="ends" id="endLbl"></span>
+    </div>
+    <button class="pill" id="nextBtn" aria-label="Next month">&#8250;</button>
+  </div>
+  <section class="legend glass">
+    <div>
+      <h3>Networks</h3>
+      <div class="sw">
+        <div><i style="background:var(--c-l1)"></i>Ethereum</div>
+        <div><i style="background:var(--c-l2)"></i>Ethereum rollups</div>
+        <div><i style="background:var(--c-other)"></i>Other networks</div>
+        <div><i style="background:var(--c-hub)"></i>Multi-chain hub</div>
+      </div>
+    </div>
+    <div>
+      <h3>Direction</h3>
+      A ribbon starts at the source arc and ends with an arrow at the destination arc. For a pair bridge, such as the Arbitrum canonical bridge, the data gives both ends. Ethereum deposits go to the rollup. Withdrawals come back to Ethereum.
+    </div>
+    <div>
+      <h3>The hub</h3>
+      Multi-chain bridges (Across, Relay, CCTP, LayerZero, Wormhole and others) report value per chain and not per route. Value that leaves a chain through them flows into the hub. Value that arrives flows out of the hub. The hub arc therefore counts each transfer twice, once on each end.
+    </div>
+    <div>
+      <h3>Sound</h3>
+      Each network has a fixed note on a pentatonic scale, panned to its position on the ring. A bell sounds for a network whose monthly volume grew. The soft pad gets louder with the total monthly volume.
+    </div>
+  </section>
+  <footer>
+    Source: DefiLlama bridge volume (api.llama.fi, dimensions API, daily outgoing and incoming USD per chain and per bridge), last 24 months, values rounded to thousands of USD. Processed on <span id="genDate"></span>. The current month is partial.
+    <a href="README.md">Read the README</a> for the method and the limitations.
+  </footer>
+</div>
+<div class="tip" id="tip"></div>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const COLORS = { l1: '#2a78d6', l2: '#eb6834', other: '#1baf7a', hub: '#6250d6' };
+  const MONTH_SECONDS = 2.6;      // tween length between two months
+  const HOLD_AT_END = 1.6;        // pause before the loop restarts
+  let D = null;                   // the data file
+  let pos = 0;                    // fractional month position
+  let playing = true;
+  let targetPos = null;           // scrub target
+  let lastShownMonth = -1;
+  let lastFrame = 0;
+  let audio = null;               // sound engine, null without an AudioContext
+  let hover = null;               // hovered node index
+
+  const svg = d3.select('#chord');
+  const tip = document.getElementById('tip');
+  const fmt = (k) => {            // k is thousands of USD
+    const v = k * 1000;
+    if (v >= 1e9) return '$' + (v / 1e9).toFixed(v >= 1e10 ? 0 : 1) + 'B';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M';
+    if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+    return '$' + v.toFixed(0);
+  };
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthName = (key, long) => {
+    const [y, m] = key.split('-').map(Number);
+    return (long ? MONTHS[m - 1] : MONTHS[m - 1].slice(0, 3)) + ' ' + y;
+  };
+
+  // ---------- layout ----------
+  let size = 640, outerR = 240, innerR = 222;
+  const chordLayout = d3.chordDirected().padAngle(0.028).sortSubgroups(d3.descending).sortChords(d3.descending);
+  let arcGen, ribbonGen;
+  const gDefs = svg.append('defs');
+  gDefs.append('filter').attr('id', 'tileShadow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%')
+    .append('feDropShadow').attr('dx', 0).attr('dy', 2).attr('stdDeviation', 3).attr('flood-color', '#5460aa').attr('flood-opacity', 0.22);
+  const gRibbons = svg.append('g').attr('class', 'ribbons');
+  const gArcs = svg.append('g').attr('class', 'arcs');
+  const gLabels = svg.append('g').attr('class', 'labels');
+
+  function resize() {
+    const w = document.querySelector('.stage').clientWidth - 16;
+    size = Math.max(300, Math.min(700, w));
+    const labelPad = size < 480 ? 78 : 84;
+    outerR = size / 2 - labelPad;
+    innerR = outerR - (size < 480 ? 14 : 18);
+    svg.attr('viewBox', [-size / 2, -size / 2, size, size].join(' '));
+    arcGen = d3.arc().innerRadius(innerR).outerRadius(outerR).cornerRadius(4);
+    ribbonGen = d3.ribbonArrow().radius(innerR - 2).padAngle(1 / innerR).headRadius(size < 480 ? 9 : 12);
+  }
+
+  function lerpMatrix(a, b, f) {
+    const n = a.length, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      out[i] = new Array(n);
+      for (let j = 0; j < n; j++) out[i][j] = a[i][j] + (b[i][j] - a[i][j]) * f;
+    }
+    return out;
+  }
+  const pt = (angle, r) => [Math.sin(angle) * r, -Math.cos(angle) * r];
+
+  function render(matrix) {
+    const nodes = D.nodes;
+    const chords = chordLayout(matrix);
+    const key = (c) => c.source.index + '-' + c.target.index;
+
+    // gradients, one per ribbon, from source color to destination color with a glossy middle
+    const grads = gDefs.selectAll('linearGradient').data(chords, key);
+    const gEnter = grads.enter().append('linearGradient').attr('id', (c) => 'g' + key(c)).attr('gradientUnits', 'userSpaceOnUse');
+    gEnter.append('stop').attr('offset', '0%');
+    gEnter.append('stop').attr('offset', '50%');
+    gEnter.append('stop').attr('offset', '100%');
+    grads.exit().remove();
+    gDefs.selectAll('linearGradient').each(function (c) {
+      const sa = (c.source.startAngle + c.source.endAngle) / 2;
+      const ta = (c.target.startAngle + c.target.endAngle) / 2;
+      const [x1, y1] = pt(sa, innerR), [x2, y2] = pt(ta, innerR);
+      const cs = COLORS[nodes[c.source.index].group], ct = COLORS[nodes[c.target.index].group];
+      const mid = d3.interpolateRgb(d3.interpolateRgb(cs, ct)(0.5), '#ffffff')(0.45);
+      const g = d3.select(this).attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2);
+      const st = g.selectAll('stop').nodes();
+      st[0].setAttribute('stop-color', cs); st[0].setAttribute('stop-opacity', 0.78);
+      st[1].setAttribute('stop-color', mid); st[1].setAttribute('stop-opacity', 0.62);
+      st[2].setAttribute('stop-color', ct); st[2].setAttribute('stop-opacity', 0.78);
+    });
+
+    const rib = gRibbons.selectAll('path.ribbon').data(chords, key);
+    rib.enter().append('path').attr('class', 'ribbon')
+      .attr('fill', (c) => 'url(#g' + key(c) + ')')
+      .on('mousemove', (ev, c) => showTip(ev, '<b>' + nodes[c.source.index].id + ' &rarr; ' + nodes[c.target.index].id + '</b><br>' + fmt(c.source.value) + ' this month'))
+      .on('mouseleave', hideTip)
+      .merge(rib)
+      .attr('d', ribbonGen)
+      .style('opacity', (c) => hover == null || c.source.index === hover || c.target.index === hover ? 1 : 0.12);
+    rib.exit().remove();
+
+    const arcs = gArcs.selectAll('path.arc').data(chords.groups, (g) => g.index);
+    arcs.enter().append('path').attr('class', 'arc')
+      .attr('fill', (g) => COLORS[nodes[g.index].group])
+      .attr('fill-opacity', 0.82)
+      .on('mouseenter', (ev, g) => { hover = g.index; })
+      .on('mousemove', (ev, g) => {
+        const m = currentMatrix;
+        let out = 0, inn = 0;
+        for (let j = 0; j < m.length; j++) { out += m[g.index][j]; inn += m[j][g.index]; }
+        showTip(ev, '<b>' + nodes[g.index].id + '</b><br>out ' + fmt(out) + ' &middot; in ' + fmt(inn));
+      })
+      .on('mouseleave', () => { hover = null; hideTip(); })
+      .merge(arcs)
+      .attr('d', arcGen);
+    arcs.exit().remove();
+
+    // Small arcs get no label on the ring. The chips below the ring name every node.
+    const minAngle = size < 480 ? 0.11 : 0.045;
+    const labels = gLabels.selectAll('text.lbl').data(chords.groups, (g) => g.index);
+    labels.enter().append('text').attr('class', 'lbl').attr('dy', '0.35em')
+      .text((g) => nodes[g.index].id === 'Multi-chain hub' ? 'Hub' : nodes[g.index].id)
+      .merge(labels)
+      .style('display', (g) => (g.endAngle - g.startAngle) < minAngle ? 'none' : null)
+      .attr('transform', (g) => {
+        const a = (g.startAngle + g.endAngle) / 2;
+        const deg = a * 180 / Math.PI - 90;
+        const flip = a > Math.PI;
+        return 'rotate(' + deg + ') translate(' + (outerR + 8) + ',0)' + (flip ? ' rotate(180)' : '');
+      })
+      .attr('text-anchor', (g) => ((g.startAngle + g.endAngle) / 2 > Math.PI) ? 'end' : 'start');
+    labels.exit().remove();
+    return chords;
+  }
+
+  let currentMatrix = null;
+  function showTip(ev, html) {
+    tip.innerHTML = html; tip.classList.add('on');
+    const x = Math.min(ev.clientX + 14, window.innerWidth - 250), y = ev.clientY + 14;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.classList.remove('on'); }
+
+  // ---------- side panel and chips ----------
+  function nodeVolume(mi, i) {
+    const m = D.matrix[mi];
+    let s = 0;
+    for (let j = 0; j < m.length; j++) s += m[i][j] + m[j][i];
+    return s;
+  }
+  function updateMonthUI(mi) {
+    const key = D.months[mi];
+    const partial = D.last_month_partial && mi === D.months.length - 1;
+    document.getElementById('monthBadge').textContent = monthName(key, true) + (partial ? ' (to ' + D.last_day.slice(8) + ')' : '');
+    document.getElementById('heroSub').textContent = 'across ' + D.bridge_count + ' tracked bridges in ' + monthName(key, true) + (partial ? ', partial month' : '');
+    document.getElementById('scrub').value = mi;
+
+    const rows = D.bridges.map((b) => ({ name: b.name, kind: b.kind, v: b.monthly[mi] })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 10);
+    const max = rows.length ? rows[0].v : 1;
+    const list = d3.select('#bridgeList').selectAll('div.row').data(rows, (r) => r.name);
+    const enter = list.enter().append('div').attr('class', 'row');
+    enter.append('span').attr('class', 'rk');
+    const nm = enter.append('div').attr('class', 'nm');
+    nm.append('span');
+    nm.append('div').attr('class', 'bar').style('width', '0%');
+    enter.append('span').attr('class', 'vl');
+    const all = enter.merge(list).order();
+    all.select('.rk').text((r, i) => i + 1);
+    all.select('.nm span').text((r) => r.name);
+    all.select('.bar').attr('class', (r) => 'bar ' + r.kind).style('width', (r) => (100 * r.v / max).toFixed(1) + '%');
+    all.select('.vl').text((r) => fmt(r.v));
+    list.exit().remove();
+
+    const chips = d3.select('#chips').selectAll('span.chip').data(D.nodes.map((n, i) => ({ n, i, v: nodeVolume(mi, i) })), (d) => d.n.id);
+    const ce = chips.enter().append('span').attr('class', 'chip');
+    ce.append('i').style('background', (d) => COLORS[d.n.group]);
+    ce.append('span').text((d) => d.n.id);
+    ce.append('b');
+    ce.merge(chips).select('b').text((d) => fmt(d.v));
+  }
+
+  // ---------- animation ----------
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!D) return;
+    // The first frame timestamp can be earlier than the click time, so clamp dt at zero.
+    const dt = Math.max(0, Math.min(0.1, (ts - lastFrame) / 1000 || 0));
+    lastFrame = ts;
+    const last = D.months.length - 1;
+    if (targetPos != null) {
+      const d = targetPos - pos;
+      if (Math.abs(d) < 0.004) { pos = targetPos; targetPos = null; }
+      else pos += d * Math.min(1, dt * 4.5);
+    } else if (playing) {
+      if (pos >= last) {
+        holdTimer += dt;
+        if (holdTimer > HOLD_AT_END) { holdTimer = 0; pos = 0; lastShownMonth = -1; }
+      } else {
+        pos = Math.min(last, pos + dt / MONTH_SECONDS);
+      }
+    }
+    pos = Math.max(0, Math.min(last, pos));
+    const a = Math.floor(pos), b = Math.min(last, a + 1), f = pos - a;
+    currentMatrix = f === 0 ? D.matrix[a] : lerpMatrix(D.matrix[a], D.matrix[b], f);
+    render(currentMatrix);
+    const total = D.totals[a] + (D.totals[b] - D.totals[a]) * f;
+    document.getElementById('heroNum').textContent = fmt(total);
+    const shown = Math.round(pos);
+    if (shown !== lastShownMonth) {
+      const prev = lastShownMonth;
+      lastShownMonth = shown;
+      updateMonthUI(shown);
+      if (audio && prev >= 0 && prev !== shown) audio.monthChange(prev, shown);
+      if (audio) audio.swell(D.totals[shown] / maxTotal);
+    }
+  }
+  let holdTimer = 0, maxTotal = 1;
+
+  // ---------- controls ----------
+  function setPlaying(p) {
+    playing = p;
+    const btn = document.getElementById('playBtn');
+    btn.textContent = p ? 'Pause' : 'Play';
+    btn.setAttribute('aria-label', p ? 'Pause' : 'Play');
+  }
+  document.getElementById('playBtn').addEventListener('click', () => setPlaying(!playing));
+  document.getElementById('scrub').addEventListener('input', (e) => { targetPos = +e.target.value; setPlaying(false); });
+  document.getElementById('prevBtn').addEventListener('click', () => { targetPos = Math.max(0, Math.round(pos) - 1); setPlaying(false); });
+  document.getElementById('nextBtn').addEventListener('click', () => { targetPos = Math.min(D.months.length - 1, Math.round(pos) + 1); setPlaying(false); });
+  window.addEventListener('resize', () => { resize(); });
+
+  // ---------- sound ----------
+  // A bell per network whose volume grew, a soft pad that follows the total.
+  function makeAudio(ctx, master) {
+    const bus = ctx.createGain(); bus.gain.value = 1;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.Q.value = 0.5;
+    const dry = ctx.createGain(); dry.gain.value = 0.55;
+    const wet = ctx.createGain(); wet.gain.value = 0.5;
+    const conv = ctx.createConvolver();
+    // Generated noise impulse response, 3 seconds, exponential decay.
+    const len = Math.floor(ctx.sampleRate * 3);
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    conv.buffer = ir;
+    bus.connect(lp); lp.connect(dry); dry.connect(master); lp.connect(conv); conv.connect(wet); wet.connect(master);
+
+    // Pad: two detuned triangles through a low-pass, level follows the total volume.
+    const padGain = ctx.createGain(); padGain.gain.value = 0.0001;
+    const padLp = ctx.createBiquadFilter(); padLp.type = 'lowpass'; padLp.frequency.value = 520; padLp.Q.value = 0.7;
+    [110, 110.6, 165.2].forEach((f, i) => {
+      const o = ctx.createOscillator(); o.type = i === 2 ? 'sine' : 'triangle'; o.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = i === 2 ? 0.35 : 0.5;
+      o.connect(g); g.connect(padLp); o.start();
+    });
+    padLp.connect(padGain); padGain.connect(bus);
+
+    // Pentatonic note per node index, fixed for the whole visit.
+    const PENT = [0, 2, 4, 7, 9];
+    const freqOf = (i) => 220 * Math.pow(2, (PENT[i % 5] + 12 * Math.floor(i / 5)) / 12);
+
+    function bell(i, when, level) {
+      const f = freqOf(i);
+      const groups = chordLayout(currentMatrix).groups;
+      const g = groups[i];
+      const mid = g ? (g.startAngle + g.endAngle) / 2 : 0;
+      const pan = ctx.createStereoPanner(); pan.pan.value = Math.max(-0.8, Math.min(0.8, Math.sin(mid) * 0.8));
+      const amp = ctx.createGain(); amp.gain.setValueAtTime(0.0001, when);
+      amp.gain.linearRampToValueAtTime(level, when + 0.012);
+      amp.gain.exponentialRampToValueAtTime(0.0001, when + 2.8);
+      const car = ctx.createOscillator(); car.type = 'sine'; car.frequency.value = f;
+      const mod = ctx.createOscillator(); mod.type = 'sine'; mod.frequency.value = f * 1.41;
+      const modGain = ctx.createGain(); modGain.gain.setValueAtTime(f * 1.1, when);
+      modGain.gain.exponentialRampToValueAtTime(f * 0.02, when + 0.9);
+      mod.connect(modGain); modGain.connect(car.frequency);
+      const shimmer = ctx.createOscillator(); shimmer.type = 'sine'; shimmer.frequency.value = f * 2.76;
+      const shGain = ctx.createGain(); shGain.gain.setValueAtTime(level * 0.18, when);
+      shGain.gain.exponentialRampToValueAtTime(0.0001, when + 0.6);
+      car.connect(amp); shimmer.connect(shGain); shGain.connect(amp); amp.connect(pan); pan.connect(bus);
+      car.start(when); mod.start(when); shimmer.start(when);
+      car.stop(when + 3); mod.stop(when + 3); shimmer.stop(when + 3);
+    }
+
+    return {
+      monthChange(prev, next) {
+        // Chains whose volume grew, ranked by growth ratio. Few chimes, spread over the tween.
+        const grew = [];
+        for (let i = 0; i < D.nodes.length; i++) {
+          const a = nodeVolume(prev, i), b = nodeVolume(next, i);
+          if (b > a * 1.03 && b > 0) grew.push({ i, ratio: b / Math.max(a, 1000), abs: b - a });
+        }
+        grew.sort((x, y) => y.ratio - x.ratio);
+        const picks = grew.slice(0, 5);
+        const t0 = ctx.currentTime + 0.05;
+        picks.forEach((p, k) => {
+          const level = 0.05 + 0.07 * Math.min(1, Math.log10(1 + p.abs / 1e5) / 2);
+          bell(p.i, t0 + k * (MONTH_SECONDS * 0.7 / Math.max(1, picks.length)), level);
+        });
+      },
+      swell(ratio) {
+        const g = 0.012 + 0.05 * Math.max(0, Math.min(1, ratio));
+        padGain.gain.setTargetAtTime(g, ctx.currentTime, 0.8);
+        padLp.frequency.setTargetAtTime(380 + 420 * ratio, ctx.currentTime, 0.8);
+      }
+    };
+  }
+
+  // ---------- boot ----------
+  fetch('data/flows.json').then((r) => r.json()).then((data) => {
+    D = data;
+    maxTotal = d3.max(D.totals);
+    document.getElementById('scrub').max = D.months.length - 1;
+    document.getElementById('startLbl').textContent = monthName(D.months[0]);
+    document.getElementById('endLbl').textContent = monthName(D.months[D.months.length - 1]);
+    document.getElementById('genDate').textContent = D.generated;
+    resize();
+    currentMatrix = D.matrix[0];
+    render(currentMatrix);
+    updateMonthUI(0);
+    lastShownMonth = 0;
+    document.getElementById('heroNum').textContent = fmt(D.totals[0]);
+  });
+
+  Gallery.mount({
+    slug: 'bridge-flows',
+    title: 'Liquidity in Motion',
+    blurb: 'Two years of cross-chain bridge volume as a chord diagram, one month at a time. Bells ring for the networks that grow. A soft pad rises and falls with the total.',
+    onStart(audioCtx, masterGain) {
+      if (audioCtx && masterGain) {
+        try { audio = makeAudio(audioCtx, masterGain); } catch (e) { audio = null; }
+        if (audio && D) audio.swell(D.totals[0] / maxTotal);
+      }
+      lastFrame = performance.now();
+      requestAnimationFrame(frame);
+    }
+  });
+})();
+</script>
+</body>
+</html>
