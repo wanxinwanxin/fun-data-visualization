@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Commute Bloodstream</title>
+<style>
+  :root {
+    --ink: #000;
+    --paper: #fff;
+    --mute: #6b6b6b;
+    --rule: #d9d9d9;
+    --accent: #e30613;
+    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+  body { -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  .page {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 0 32px;
+    padding: 28px 32px 56px;
+    min-height: 100vh;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  header { grid-column: 1 / -1; display: grid; grid-template-columns: 300px 1fr; gap: 0 32px; align-items: end; border-bottom: 1px solid var(--ink); padding-bottom: 14px; }
+  .kicker { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; margin: 0 0 8px; }
+  h1 { font-size: 30px; line-height: 1.02; letter-spacing: -.02em; margin: 0; font-weight: 700; }
+  .dek { font-size: 13px; line-height: 1.45; color: var(--mute); margin: 0; max-width: 60ch; }
+  aside { padding-top: 24px; display: flex; flex-direction: column; gap: 26px; }
+  .stat .n { font-size: 84px; line-height: .9; letter-spacing: -.045em; font-weight: 700; margin: 0; font-variant-numeric: proportional-nums; }
+  .stat .n.clock { font-size: 54px; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .stat .l { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin: 6px 0 0; }
+  .legend { font-size: 12px; line-height: 1.6; border-top: 1px solid var(--ink); padding-top: 10px; }
+  .legend div { display: flex; align-items: center; gap: 10px; }
+  .sw { width: 22px; height: 0; border-top: 2px solid var(--ink); flex: none; }
+  .sw.red { border-color: var(--accent); }
+  .sw.dot { width: 22px; display: flex; justify-content: center; border: 0; }
+  .sw.dot::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: #000; opacity: .35; }
+  .sw.core::before { width: 7px; height: 7px; opacity: 1; }
+  .sw.particle::before { width: 3px; height: 3px; border-radius: 0; background: var(--accent); opacity: 1; }
+  .caption { font-size: 12px; line-height: 1.5; color: var(--mute); border-top: 1px solid var(--ink); padding-top: 10px; }
+  .caption b { color: var(--ink); font-weight: 600; }
+  .map { position: relative; min-height: 420px; }
+  canvas#map { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+  footer { grid-column: 1 / -1; border-top: 1px solid var(--ink); padding-top: 12px; display: grid; grid-template-columns: 300px 1fr; gap: 0 32px; align-items: start; }
+  .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  .controls button { font: inherit; font-size: 12px; letter-spacing: .06em; background: var(--paper); color: var(--ink); border: 1px solid var(--ink); border-radius: 0; padding: 7px 12px; cursor: pointer; min-width: 64px; }
+  .controls button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .controls .speed { display: flex; gap: 0; margin-left: 10px; }
+  .controls .speed button { min-width: 40px; border-left-width: 0; }
+  .controls .speed button:first-child { border-left-width: 1px; }
+  .timeline { position: relative; height: 84px; }
+  canvas#tl { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+  input[type=range] { -webkit-appearance: none; appearance: none; position: absolute; left: 0; right: 0; bottom: 14px; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: transparent; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 2px; height: 22px; background: var(--accent); margin-top: -10px; }
+  input[type=range]::-moz-range-track { height: 1px; background: transparent; }
+  input[type=range]::-moz-range-thumb { width: 2px; height: 22px; background: var(--accent); border: 0; border-radius: 0; }
+  .source { grid-column: 1 / -1; font-size: 11px; color: var(--mute); margin-top: 14px; line-height: 1.6; }
+  .source a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+  @media (max-width: 900px) {
+    .page { grid-template-columns: 1fr; padding: 18px 16px 70px; gap: 0; }
+    header { grid-template-columns: 1fr; gap: 10px; }
+    h1 { font-size: 24px; }
+    aside { flex-direction: row; flex-wrap: wrap; gap: 18px 24px; padding-top: 16px; order: 2; }
+    .stat .n { font-size: 48px; }
+    .stat .n.clock { font-size: 40px; }
+    .legend, .caption { flex: 1 1 100%; }
+    .map { order: 1; height: 62vh; min-height: 340px; }
+    footer { grid-template-columns: 1fr; gap: 10px; order: 3; margin-top: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <p class="kicker">Thirteen Rooms — 03</p>
+      <h1>The Commute Bloodstream</h1>
+    </div>
+    <p class="dek">Chicago, one working day. Every particle is a group of workers that travel from the tract where they live to the tract where they work, and back. The city has a pulse: two beats, morning and evening.</p>
+  </header>
+
+  <aside>
+    <div class="stat"><p class="n" id="count">0</p><p class="l">workers in motion</p></div>
+    <div class="stat"><p class="n clock" id="clock">00:00</p><p class="l">simulated time</p></div>
+    <div class="legend" id="legend">
+      <div><span class="sw red"></span><span>Home to work, morning (red)</span></div>
+      <div><span class="sw"></span><span>Work to home, evening (black)</span></div>
+      <div><span class="sw dot"></span><span>Census tract centroid</span></div>
+      <div><span class="sw dot core"></span><span>The Loop, the core</span></div>
+      <div><span class="sw dot particle"></span><span id="legend-n">1 particle = 20 workers</span></div>
+    </div>
+    <div class="caption">
+      <b>What you see.</b> Each point of light is a group of workers on the way between home and work. The curve under the timeline is the pulse: how many workers move at each minute.
+      <b>What you hear.</b> A crowd of soft noise grains. The grain rate follows the number of workers in motion. Each grain pans left or right with the longitude of the particle. A wooden tick marks each 15 minutes. A low tone swells at the two rush-hour peaks.
+    </div>
+  </aside>
+
+  <div class="map"><canvas id="map"></canvas></div>
+
+  <footer>
+    <div class="controls">
+      <button id="play" aria-pressed="true">Pause</button>
+      <div class="speed" role="group" aria-label="Speed">
+        <button data-speed="0.5">½×</button>
+        <button data-speed="1" aria-pressed="true">1×</button>
+        <button data-speed="2">2×</button>
+        <button data-speed="4">4×</button>
+      </div>
+    </div>
+    <div class="timeline">
+      <canvas id="tl"></canvas>
+      <input type="range" id="scrub" min="0" max="1440" step="1" value="0" aria-label="Time of day in minutes">
+    </div>
+    <p class="source">Source: US Census Bureau, LEHD LODES8 origin-destination file for Illinois (2022, all jobs). Tract centroids: Census Gazetteer 2023. Time of departure: ACS 2022 5-year, table B08302. LODES has no time of day. The departure times here come from the ACS distribution of each home tract. The return trip starts 9 hours after departure. Travel time is a function of straight-line distance. <a href="README.md">Read the README</a>.</p>
+  </footer>
+</div>
+
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const WORKERS_PER_PARTICLE = 20;
+  const ACCENT = '#e30613';
+  const INK = '#000';
+  const DAY = 1440;
+
+  // ---------- data ----------
+  let T = null;       // tracts.json
+  let pairs = null;   // Uint16Array triples
+  let N = 0;          // number of particles
+  let pHome, pWork, pDep, pDur, pRet; // particle arrays
+  let X, Y;           // tract positions in map pixels
+  let pulse = new Float32Array(DAY); // workers in motion per minute
+  let pulseMax = 1;
+  let peaks = [465, 1005]; // minutes, overwritten after the pulse is built
+  let inMotion = new Int32Array(0); // indices of particles drawn in the last frame
+  let inMotionN = 0;
+
+  function hash(i, k) {
+    // Deterministic pseudo-random in [0, 1) from two integers.
+    let h = (i * 374761393 + k * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+
+  function buildParticles() {
+    const nt = T.tracts.length;
+    const edges = T.meta.bin_edges;
+    const dep = T.departure;
+    const kx = Math.cos((T.meta.bbox[1] + T.meta.bbox[3]) / 2 * Math.PI / 180) * 111.32;
+    const ky = 110.57;
+    const cum = new Float32Array(nt * 14);
+    for (let t = 0; t < nt; t++) {
+      let s = 0;
+      for (let b = 0; b < 14; b++) s += dep[t * 14 + b];
+      let c = 0;
+      for (let b = 0; b < 14; b++) { c += dep[t * 14 + b] / s; cum[t * 14 + b] = c; }
+    }
+    let total = 0;
+    const M = pairs.length / 3;
+    const counts = new Int32Array(M);
+    for (let p = 0; p < M; p++) {
+      const jobs = pairs[p * 3 + 2];
+      const q = jobs / WORKERS_PER_PARTICLE;
+      const n = Math.floor(q) + (hash(p, 1) < q - Math.floor(q) ? 1 : 0); // stochastic rounding
+      counts[p] = n; total += n;
+    }
+    N = total;
+    pHome = new Uint16Array(N); pWork = new Uint16Array(N);
+    pDep = new Float32Array(N); pDur = new Float32Array(N); pRet = new Float32Array(N);
+    let i = 0;
+    for (let p = 0; p < M; p++) {
+      const h = pairs[p * 3], w = pairs[p * 3 + 1];
+      const dx = (T.tracts[w][1] - T.tracts[h][1]) * kx, dy = (T.tracts[w][2] - T.tracts[h][2]) * ky;
+      const km = Math.sqrt(dx * dx + dy * dy);
+      for (let k = 0; k < counts[p]; k++, i++) {
+        const u = hash(i, 2);
+        let b = 0; while (b < 13 && cum[h * 14 + b] < u) b++;
+        const depH = edges[b] + (edges[b + 1] - edges[b]) * hash(i, 3);
+        const dur = Math.min(90, 8 + km / 30 * 60 * (0.8 + 0.4 * hash(i, 4)));
+        pHome[i] = h; pWork[i] = w;
+        pDep[i] = depH * 60;
+        pDur[i] = dur;
+        pRet[i] = (depH * 60 + 540 + (hash(i, 5) - 0.5) * 60) % DAY;
+      }
+    }
+    inMotion = new Int32Array(N);
+    // Pulse: workers in motion per minute, from a difference array.
+    const diff = new Float32Array(DAY + 1);
+    for (let j = 0; j < N; j++) {
+      if (pHome[j] === pWork[j]) continue;
+      for (const s of [pDep[j], pRet[j]]) {
+        const a = Math.floor(s), bEnd = Math.floor(s + pDur[j]);
+        if (bEnd < DAY) { diff[a] += 1; diff[bEnd + 1 < DAY ? bEnd + 1 : DAY] -= 1; }
+        else { diff[a] += 1; diff[DAY] -= 1; diff[0] += 1; diff[(bEnd - DAY) + 1] -= 1; }
+      }
+    }
+    let run = 0; pulseMax = 1;
+    for (let m = 0; m < DAY; m++) { run += diff[m]; pulse[m] = run * WORKERS_PER_PARTICLE; if (pulse[m] > pulseMax) pulseMax = pulse[m]; }
+    let m1 = 0, m2 = 0;
+    for (let m = 240; m < 720; m++) if (pulse[m] > pulse[m1]) m1 = m;
+    m2 = 720; for (let m = 720; m < 1320; m++) if (pulse[m] > pulse[m2]) m2 = m;
+    peaks = [m1, m2];
+    document.getElementById('legend-n').textContent = '1 particle = ' + WORKERS_PER_PARTICLE + ' workers · ' + N.toLocaleString() + ' particles';
+  }
+
+  // ---------- map ----------
+  const mapEl = document.getElementById('map');
+  const mctx = mapEl.getContext('2d');
+  let base = null; // offscreen canvas with outlines and tract dots
+  let W = 0, H = 0, DPR = 1;
+  let proj = { s: 1, ox: 0, oy: 0, kx: 1 };
+
+  function layoutMap() {
+    const r = mapEl.parentElement.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
+    mapEl.width = Math.round(W * DPR); mapEl.height = Math.round(H * DPR);
+    const [lon0, lat0, lon1, lat1] = T.meta.bbox;
+    const kx = Math.cos((lat0 + lat1) / 2 * Math.PI / 180);
+    const spanX = (lon1 - lon0) * kx, spanY = lat1 - lat0;
+    const pad = 12;
+    const s = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+    proj = { s, kx, ox: pad + ((W - 2 * pad) - spanX * s) / 2, oy: pad + ((H - 2 * pad) - spanY * s) / 2, lon0, lat1 };
+    const nt = T.tracts.length;
+    X = new Float32Array(nt); Y = new Float32Array(nt);
+    for (let t = 0; t < nt; t++) {
+      X[t] = proj.ox + (T.tracts[t][1] - lon0) * kx * s;
+      Y[t] = proj.oy + (lat1 - T.tracts[t][2]) * s;
+    }
+    base = document.createElement('canvas');
+    base.width = mapEl.width; base.height = mapEl.height;
+    const c = base.getContext('2d');
+    c.scale(DPR, DPR);
+    c.fillStyle = '#fff'; c.fillRect(0, 0, W, H);
+    c.save();
+    c.beginPath(); c.rect(proj.ox, proj.oy, spanX * s, spanY * s); c.clip();
+    c.strokeStyle = 'rgba(0,0,0,0.22)'; c.lineWidth = 1;
+    c.beginPath();
+    for (const line of T.counties) {
+      for (let i = 0; i < line.length; i++) {
+        const px = proj.ox + (line[i][0] - lon0) * kx * s, py = proj.oy + (lat1 - line[i][1]) * s;
+        if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+      }
+    }
+    c.stroke();
+    c.restore();
+    c.fillStyle = 'rgba(0,0,0,0.3)';
+    for (let t = 0; t < nt; t++) { c.beginPath(); c.arc(X[t], Y[t], 1.1, 0, 6.2832); c.fill(); }
+    const ci = T.meta.core_index;
+    c.fillStyle = INK; c.beginPath(); c.arc(X[ci], Y[ci], 4, 0, 6.2832); c.fill();
+    c.font = '500 11px ' + getComputedStyle(document.body).fontFamily;
+    c.fillStyle = INK; c.fillText('The Loop', X[ci] + 8, Y[ci] + 4);
+  }
+
+  function drawMap(minute) {
+    mctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    mctx.drawImage(base, 0, 0, W, H);
+    inMotionN = 0;
+    const size = W > 700 ? 1.8 : 1.5;
+    // Two passes: morning (red) then evening (black), so fillStyle changes only twice.
+    for (let pass = 0; pass < 2; pass++) {
+      mctx.fillStyle = pass === 0 ? ACCENT : INK;
+      mctx.globalAlpha = 0.85;
+      for (let j = 0; j < N; j++) {
+        const h = pHome[j], w = pWork[j];
+        if (h === w) continue;
+        const start = pass === 0 ? pDep[j] : pRet[j];
+        let dt = minute - start; if (dt < 0) dt += DAY;
+        const dur = pDur[j];
+        if (dt >= dur) continue;
+        const f = dt / dur;
+        let x0, y0, x1, y1;
+        if (pass === 0) { x0 = X[h]; y0 = Y[h]; x1 = X[w]; y1 = Y[w]; } else { x0 = X[w]; y0 = Y[w]; x1 = X[h]; y1 = Y[h]; }
+        // Gentle curve: the control point sits to the right of the travel direction.
+        const dx = x1 - x0, dy = y1 - y0;
+        const cx = (x0 + x1) / 2 - dy * 0.12, cy = (y0 + y1) / 2 + dx * 0.12;
+        const g = 1 - f;
+        const px = g * g * x0 + 2 * g * f * cx + f * f * x1;
+        const py = g * g * y0 + 2 * g * f * cy + f * f * y1;
+        mctx.fillRect(px - size / 2, py - size / 2, size, size);
+        inMotion[inMotionN++] = j;
+      }
+    }
+    mctx.globalAlpha = 1;
+  }
+
+  // ---------- timeline ----------
+  const tlEl = document.getElementById('tl');
+  const tctx = tlEl.getContext('2d');
+  let TW = 0, TH = 0;
+  function layoutTimeline() {
+    const r = tlEl.parentElement.getBoundingClientRect();
+    TW = Math.max(1, Math.round(r.width)); TH = Math.max(1, Math.round(r.height));
+    tlEl.width = Math.round(TW * DPR); tlEl.height = Math.round(TH * DPR);
+  }
+  function drawTimeline(minute) {
+    const c = tctx;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.clearRect(0, 0, TW, TH);
+    const y0 = TH - 25, top = 8;
+    const xOf = m => (m / DAY) * TW;
+    // Pulse curve.
+    c.beginPath();
+    for (let m = 0; m < DAY; m++) {
+      const y = y0 - (pulse[m] / pulseMax) * (y0 - top);
+      if (m === 0) c.moveTo(xOf(m), y); else c.lineTo(xOf(m), y);
+    }
+    c.lineTo(xOf(DAY - 1), y0);
+    c.strokeStyle = INK; c.lineWidth = 1; c.stroke();
+    // Baseline and hour ticks.
+    c.beginPath(); c.moveTo(0, y0 + 0.5); c.lineTo(TW, y0 + 0.5); c.stroke();
+    c.font = '10px ' + getComputedStyle(document.body).fontFamily;
+    c.fillStyle = '#6b6b6b'; c.textAlign = 'center';
+    const step = TW < 500 ? 6 : 3;
+    for (let h = 0; h <= 24; h += step) {
+      const x = Math.min(TW - 0.5, Math.max(0.5, xOf(h * 60)));
+      c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y0 + 5); c.strokeStyle = INK; c.stroke();
+      c.textAlign = h === 0 ? 'left' : h === 24 ? 'right' : 'center';
+      c.fillText(String(h).padStart(2, '0'), x, y0 + 17);
+    }
+    // Marker.
+    const x = xOf(minute);
+    c.strokeStyle = ACCENT; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(x, top - 4); c.lineTo(x, y0); c.stroke();
+  }
+
+  // ---------- sound ----------
+  let audio = null, master = null, bus = null, grainBuf = null, lowGain = null, tickGain = null;
+  function makeImpulse(ctx, seconds, decay) {
+    const n = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+    }
+    return buf;
+  }
+  function setupSound(ctx, masterGain) {
+    audio = ctx; master = masterGain;
+    bus = ctx.createGain(); bus.gain.value = 1;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.5;
+    const conv = ctx.createConvolver(); conv.buffer = makeImpulse(ctx, 1.8, 3.5);
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    const dry = ctx.createGain(); dry.gain.value = 0.8;
+    bus.connect(lp); lp.connect(dry); lp.connect(conv); conv.connect(wet);
+    dry.connect(master); wet.connect(master);
+    // One short noise buffer that every grain reuses.
+    const n = Math.floor(ctx.sampleRate * 0.12);
+    grainBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = grainBuf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    // Low tone for the rush peaks: two sines an octave apart.
+    lowGain = ctx.createGain(); lowGain.gain.value = 0;
+    for (const f of [55, 110]) {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = f === 55 ? 0.6 : 0.35;
+      o.connect(g); g.connect(lowGain); o.start();
+    }
+    lowGain.connect(bus);
+    tickGain = ctx.createGain(); tickGain.gain.value = 0.5; tickGain.connect(bus);
+  }
+  function grain(when, pan, freq) {
+    const src = audio.createBufferSource(); src.buffer = grainBuf;
+    const bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 1.4;
+    const g = audio.createGain();
+    const pn = audio.createStereoPanner(); pn.pan.value = pan;
+    const a = 0.012, r = 0.05 + Math.random() * 0.06;
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(0.045, when + a);
+    g.gain.exponentialRampToValueAtTime(0.0005, when + a + r);
+    src.connect(bp); bp.connect(g); g.connect(pn); pn.connect(bus);
+    src.start(when); src.stop(when + a + r + 0.02);
+  }
+  function tick(when) {
+    // A soft wooden tick: a short sine with a fast decay through a band-pass filter.
+    const o = audio.createOscillator(); o.type = 'sine'; o.frequency.value = 880;
+    o.frequency.exponentialRampToValueAtTime(520, when + 0.03);
+    const bp = audio.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 2;
+    const g = audio.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(0.22, when + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.001, when + 0.07);
+    o.connect(bp); bp.connect(g); g.connect(tickGain);
+    o.start(when); o.stop(when + 0.1);
+  }
+  let grainCarry = 0, lastTickSlot = -1;
+  function soundFrame(minute, dtReal, playing) {
+    if (!audio) return;
+    const now = audio.currentTime;
+    // Low tone: a window of about 45 minutes around each peak.
+    let env = 0;
+    for (const p of peaks) { const d = (minute - p) / 45; env = Math.max(env, Math.exp(-0.5 * d * d)); }
+    lowGain.gain.setTargetAtTime(playing ? 0.10 * env : 0, now, 0.25);
+    if (!playing) return;
+    // Crowd grains: rate follows the workers in motion.
+    const share = inMotionN * WORKERS_PER_PARTICLE / pulseMax;
+    const rate = 3 + 55 * share;
+    grainCarry += rate * dtReal;
+    let k = 0;
+    while (grainCarry >= 1 && k < 12) {
+      grainCarry -= 1; k++;
+      const when = now + Math.random() * dtReal;
+      if (inMotionN > 0) {
+        const j = inMotion[Math.floor(Math.random() * inMotionN)];
+        const x = X[pHome[j]];
+        const pan = Math.max(-0.85, Math.min(0.85, ((x / W) - 0.5) * 1.8));
+        const km = pDur[j];
+        grain(when, pan, 500 + 2200 * Math.min(1, km / 70) * Math.random());
+      } else {
+        grain(when, (Math.random() - 0.5), 700 + Math.random() * 800);
+      }
+    }
+    grainCarry = Math.min(grainCarry, 3);
+    const slot = Math.floor(minute / 15);
+    if (slot !== lastTickSlot) { lastTickSlot = slot; tick(now + 0.01); }
+  }
+
+  // ---------- clock and loop ----------
+  let minute = 300; // start at 05:00, just before the first wave
+  let playing = true, speed = 1, lastT = 0, raf = 0;
+  const MIN_PER_SEC = 10; // at speed 1, one simulated day takes 144 seconds
+  const countEl = document.getElementById('count'), clockEl = document.getElementById('clock');
+  const scrub = document.getElementById('scrub');
+  function fmt(m) { const h = Math.floor(m / 60) % 24, mm = Math.floor(m % 60); return String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); }
+  function frame(ts) {
+    raf = requestAnimationFrame(frame);
+    const dt = lastT ? Math.min(0.1, (ts - lastT) / 1000) : 0; lastT = ts;
+    if (playing) { minute = (minute + dt * MIN_PER_SEC * speed) % DAY; scrub.value = Math.floor(minute); }
+    drawMap(minute);
+    drawTimeline(minute);
+    countEl.textContent = (inMotionN * WORKERS_PER_PARTICLE).toLocaleString();
+    clockEl.textContent = fmt(minute);
+    soundFrame(minute, dt, playing);
+  }
+  const playBtn = document.getElementById('play');
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    playBtn.textContent = playing ? 'Pause' : 'Play';
+    playBtn.setAttribute('aria-pressed', String(playing));
+  });
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    speed = parseFloat(b.dataset.speed);
+    document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  scrub.addEventListener('input', () => { minute = parseFloat(scrub.value) % DAY; });
+  window.addEventListener('resize', () => { if (T) { layoutMap(); layoutTimeline(); } });
+
+  // ---------- load ----------
+  const ready = Promise.all([
+    fetch('data/tracts.json').then(r => r.json()),
+    fetch('data/pairs.bin').then(r => r.arrayBuffer())
+  ]).then(([t, buf]) => {
+    T = t; pairs = new Uint16Array(buf);
+    buildParticles();
+    layoutMap(); layoutTimeline();
+    drawMap(minute); drawTimeline(minute);
+    countEl.textContent = (inMotionN * WORKERS_PER_PARTICLE).toLocaleString();
+    clockEl.textContent = fmt(minute);
+  }).catch(err => { console.error('data load failed', err); });
+
+  Gallery.mount({
+    slug: 'commute-bloodstream',
+    title: 'The Commute Bloodstream',
+    blurb: 'Chicago as a body with a pulse. Workers stream from home to work and back as thousands of particles. You hear a crowd of noise grains that grows with the traffic, a tick every 15 minutes, and a low tone at the rush-hour peaks.',
+    onStart(ctx, masterGain) {
+      if (ctx) setupSound(ctx, masterGain);
+      ready.then(() => { lastT = 0; if (!raf) raf = requestAnimationFrame(frame); });
+    }
+  });
+})();
+</script>
+</body>
+</html>
