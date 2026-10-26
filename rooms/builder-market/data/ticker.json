@@ -1,0 +1,27 @@
+{
+ "first_number": 26227831,
+ "first_ts": 1792427459,
+ "last_number": 26278070,
+ "last_ts": 1793032259,
+ "count": 50240,
+ "record_bytes": 8,
+ "layout": "Uint8 builder index, Uint8 slot gap (12 s slots since previous block), Uint16 tx count, Float32 base fee gwei, little endian",
+ "builders": [
+  "Titan",
+  "beaverbuild",
+  "vanilla",
+  "BuilderNet",
+  "rsync",
+  "Flashbots",
+  "Quasar",
+  "builder0x69",
+  "bloXroute",
+  "Eureka",
+  "Blocknative",
+  "Builder+ (BTCS)",
+  "eth-builder",
+  "f1b.io",
+  "jetbldr",
+  "other"
+ ]
+}
