@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Centuries of Logbooks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ede3c8;
+    --paper-2: #e4d6b4;
+    --ink: #3b2a14;
+    --ink-soft: #5b4428;
+    --rule: #9a7a4c;
+    --rule-faint: rgba(122, 90, 51, 0.35);
+    --dutch: #c9561a;
+    --british: #1f6fbf;
+    --spanish: #9a8a10;
+    --french: #9a3c9a;
+    --other: #1f8f7a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IM Fell English", Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  /* Paper texture: foxing stains and fiber noise. */
+  .paper-fx {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(ellipse 320px 220px at 12% 18%, rgba(150, 100, 40, 0.18), transparent 70%),
+      radial-gradient(ellipse 240px 300px at 88% 70%, rgba(140, 90, 40, 0.16), transparent 70%),
+      radial-gradient(ellipse 160px 120px at 70% 12%, rgba(120, 70, 30, 0.12), transparent 70%),
+      radial-gradient(ellipse 200px 160px at 30% 85%, rgba(130, 80, 30, 0.14), transparent 70%),
+      radial-gradient(ellipse 90px 70px at 55% 45%, rgba(110, 60, 20, 0.10), transparent 70%),
+      linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+  }
+  .paper-fx svg { width: 100%; height: 100%; display: block; opacity: 0.55; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 18px 16px 90px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; border-bottom: 1.5px solid var(--rule); padding-bottom: 8px; }
+  h1 { font-style: italic; font-weight: 400; font-size: clamp(26px, 4vw, 44px); margin: 0; letter-spacing: 0.01em; }
+  header .sub { font-size: clamp(13px, 1.4vw, 16px); color: var(--ink-soft); font-style: italic; }
+  .stage { position: relative; margin-top: 14px; }
+  .map-wrap { position: relative; width: 100%; border: 1.2px solid var(--rule); box-shadow: inset 0 0 40px rgba(110, 70, 30, 0.18); background: rgba(255, 250, 235, 0.15); }
+  canvas#map { display: block; width: 100%; height: auto; }
+  .counter {
+    position: absolute; right: 10px; top: 8px; display: flex; gap: 2px;
+    background: rgba(237, 227, 200, 0.82); border: 1px solid var(--rule); padding: 4px 8px 2px;
+    box-shadow: 1px 2px 0 rgba(90, 60, 20, 0.25);
+  }
+  .counter .lbl { font-size: 11px; font-style: italic; color: var(--ink-soft); position: absolute; left: 8px; top: -9px; background: var(--paper); padding: 0 4px; }
+  .wheel { width: 0.62em; height: 1.3em; overflow: hidden; font-size: clamp(30px, 5.4vw, 64px); line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .wheel .col { display: flex; flex-direction: column; transition: transform 0.22s cubic-bezier(.3,.6,.3,1); will-change: transform; }
+  .wheel .col span { display: block; height: 1.3em; line-height: 1.3em; text-align: center; }
+  .compass { position: absolute; right: 10px; bottom: 14px; width: clamp(54px, 8vw, 96px); height: auto; opacity: 0.9; pointer-events: none; }
+  .chapter { position: absolute; left: 10px; top: 8px; font-style: italic; font-size: clamp(12px, 1.5vw, 16px); color: var(--ink-soft); background: rgba(237, 227, 200, 0.75); padding: 1px 6px; border: 1px solid var(--rule-faint); max-width: 60%; }
+
+  /* Ledger controls */
+  .ledger { margin-top: 14px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 0 32px; }
+  .ledger .entry { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--rule-faint); padding: 7px 0 5px; min-height: 38px; flex-wrap: wrap; }
+  .ledger .entry .k { flex: 0 0 150px; font-style: italic; color: var(--ink-soft); font-size: 14px; }
+  .ledger .entry .v { flex: 1 1 200px; font-size: 15px; }
+  .ledger .entry .v.num { font-variant-numeric: tabular-nums; }
+  button.pen {
+    font: inherit; font-size: 15px; background: transparent; border: none; border-bottom: 1.5px solid var(--ink); color: var(--ink);
+    padding: 0 6px 1px; cursor: pointer; font-style: italic; position: relative;
+  }
+  button.pen:hover { background: rgba(120, 80, 30, 0.12); }
+  button.pen[aria-pressed="true"] { background: rgba(120, 80, 30, 0.18); font-style: normal; }
+  button.pen:focus-visible { outline: 2px solid var(--british); outline-offset: 2px; }
+  .seg { display: inline-flex; gap: 10px; flex-wrap: wrap; }
+  button.pen { white-space: nowrap; }
+  input[type=range].scrub { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; }
+  input[type=range].scrub::-webkit-slider-runnable-track { height: 2px; background: repeating-linear-gradient(90deg, var(--rule) 0 6px, transparent 6px 9px); }
+  input[type=range].scrub::-moz-range-track { height: 2px; background: repeating-linear-gradient(90deg, var(--rule) 0 6px, transparent 6px 9px); }
+  input[type=range].scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 22px; margin-top: -10px; background: var(--ink); clip-path: polygon(50% 0, 100% 35%, 60% 100%, 40% 100%, 0 35%); border: none; }
+  input[type=range].scrub::-moz-range-thumb { width: 12px; height: 22px; background: var(--ink); clip-path: polygon(50% 0, 100% 35%, 60% 100%, 40% 100%, 0 35%); border: none; border-radius: 0; }
+  input[type=range].scrub:focus-visible { outline: 2px solid var(--british); outline-offset: 4px; }
+  .scrub-wrap { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; }
+  .scrub-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; align-items: center; }
+  .legend .it { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { width: 28px; height: 14px; }
+  .hist-wrap { grid-column: 1 / -1; margin-top: 8px; }
+  .hist-wrap .cap { font-style: italic; color: var(--ink-soft); font-size: 14px; margin: 6px 0 2px; }
+  svg#hist { width: 100%; height: 120px; display: block; }
+  svg#hist rect.hit { cursor: pointer; }
+  .caption { margin-top: 18px; font-size: 15px; max-width: 960px; }
+  .caption p { margin: 6px 0; }
+  .source { font-size: 13px; color: var(--ink-soft); border-top: 1px solid var(--rule-faint); padding-top: 8px; margin-top: 14px; }
+  .source a { color: var(--ink); }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: italic; color: var(--ink-soft); pointer-events: none; }
+  @media (max-width: 760px) {
+    .ledger { grid-template-columns: 1fr; gap: 0; }
+    .ledger .entry .k { flex-basis: 110px; font-size: 13px; }
+    .ledger .entry .v { font-size: 14px; }
+    .counter { right: 6px; top: 5px; padding: 3px 6px 1px; }
+    .page { padding: 12px 16px 80px; }
+    svg#hist { height: 90px; }
+  }
+</style>
+</head>
+<body>
+<div class="paper-fx" aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    <filter id="fiber"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.45 0 0 0 0 0.32 0 0 0 0 0.16 0 0 0 0.22 0"/></filter>
+    <filter id="fox"><feTurbulence type="fractalNoise" baseFrequency="0.006" numOctaves="3" seed="11" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.55 0 0 0 0 0.38 0 0 0 0 0.18 0 0 0 0.35 -0.08"/></filter>
+    <rect width="100%" height="100%" filter="url(#fiber)"/>
+    <rect width="100%" height="100%" filter="url(#fox)"/>
+  </svg>
+</div>
+
+<div class="page">
+  <header>
+    <h1>Four Centuries of Logbooks</h1>
+    <div class="sub">Where ships wrote down the weather, 1662 to 2014</div>
+  </header>
+
+  <div class="stage">
+    <div class="map-wrap">
+      <canvas id="map" width="1200" height="600" aria-label="World map of ship weather reports"></canvas>
+      <div class="chapter" id="chapter">&nbsp;</div>
+      <div class="counter" aria-live="off"><span class="lbl">Anno</span>
+        <div class="wheel" id="w0"></div><div class="wheel" id="w1"></div><div class="wheel" id="w2"></div><div class="wheel" id="w3"></div>
+      </div>
+      <svg class="compass" viewBox="0 0 100 100" aria-hidden="true" id="compass">
+        <g fill="none" stroke="#3b2a14" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="50" cy="50" r="40" stroke-dasharray="1 2.4"/>
+          <circle cx="50" cy="50" r="31" stroke-width="0.7"/>
+          <path d="M50 8 L56 50 L50 92 L44 50 Z" fill="#3b2a14" fill-opacity="0.12"/>
+          <path d="M50 8 L56 50 L44 50 Z" fill="#3b2a14" fill-opacity="0.65"/>
+          <path d="M8 50 L50 44 L92 50 L50 56 Z" fill="#3b2a14" fill-opacity="0.12"/>
+          <path d="M21 21 L50 46 L79 79 M79 21 L54 50 L21 79" stroke-width="0.8"/>
+        </g>
+        <text x="50" y="7" font-size="9" text-anchor="middle" fill="#3b2a14" font-family="IM Fell English, Georgia, serif" font-style="italic">N</text>
+      </svg>
+      <div class="loading" id="loading">The clerk is opening the ledgers&hellip;</div>
+    </div>
+  </div>
+
+  <div class="ledger" role="group" aria-label="Ledger controls">
+    <div class="entry"><span class="k">Entry</span><span class="v seg">
+      <button class="pen" id="play" aria-pressed="true">Pause</button>
+      <button class="pen" id="back" title="Previous period">&#8592; back</button>
+      <button class="pen" id="fwd" title="Next period">forward &#8594;</button>
+    </span></div>
+    <div class="entry"><span class="k">Platforms</span><span class="v seg">
+      <button class="pen" id="modeShips" aria-pressed="true">ships only</button>
+      <button class="pen" id="modeAll" aria-pressed="false">ships, buoys and stations</button>
+    </span></div>
+    <div class="entry"><span class="k">Period</span><span class="v scrub-wrap">
+      <input type="range" class="scrub" id="scrub" min="0" max="62" value="0" step="1" aria-label="Period scrubber">
+      <span class="scrub-ticks"><span>1662</span><span>1750</span><span>1850</span><span>1950</span><span>2014</span></span>
+    </span></div>
+    <div class="entry"><span class="k">This month</span><span class="v num" id="ledgerCount">&mdash;</span></div>
+    <div class="entry"><span class="k">Of which</span><span class="v num" id="ledgerMix">&mdash;</span></div>
+    <div class="entry"><span class="k">Flags noted</span><span class="v" id="ledgerFlags">&mdash;</span></div>
+    <div class="entry"><span class="k">Legend</span><span class="v legend" id="legend">
+      <span class="it"><svg viewBox="0 0 28 14"><circle cx="6" cy="7" r="1.6" fill="#3b2a14"/><circle cx="14" cy="7" r="2.6" fill="#3b2a14"/><circle cx="23" cy="7" r="3.6" fill="#3b2a14"/></svg>ship reports per half-degree cell (few to many)</span>
+      <span class="it"><svg viewBox="0 0 28 14"><circle cx="8" cy="7" r="2.4" fill="none" stroke="#3b2a14" stroke-width="0.9"/><circle cx="19" cy="7" r="3.4" fill="none" stroke="#3b2a14" stroke-width="0.9"/></svg>buoy and station reports</span>
+      <span class="it"><svg viewBox="0 0 28 14"><rect x="2" y="2" width="24" height="10" fill="#3b2a14" fill-opacity="0.18"/></svg>faint ink: earlier periods</span>
+    </span></div>
+    <div class="entry"><span class="k">Voyages 1750&ndash;1855</span><span class="v legend">
+      <span class="it"><svg viewBox="0 0 28 14"><path d="M2 10 C 8 2, 16 12, 26 4" stroke="#c9561a" stroke-width="1.6" fill="none"/></svg>Dutch</span>
+      <span class="it"><svg viewBox="0 0 28 14"><path d="M2 10 C 8 2, 16 12, 26 4" stroke="#1f6fbf" stroke-width="1.6" fill="none"/></svg>British</span>
+      <span class="it"><svg viewBox="0 0 28 14"><path d="M2 10 C 8 2, 16 12, 26 4" stroke="#9a8a10" stroke-width="1.6" fill="none"/></svg>Spanish</span>
+      <span class="it"><svg viewBox="0 0 28 14"><path d="M2 10 C 8 2, 16 12, 26 4" stroke="#9a3c9a" stroke-width="1.6" fill="none"/></svg>French</span>
+      <span class="it"><svg viewBox="0 0 28 14"><path d="M2 10 C 8 2, 16 12, 26 4" stroke="#1f8f7a" stroke-width="1.6" fill="none"/></svg>Other</span>
+    </span></div>
+    <div class="hist-wrap">
+      <div class="cap">Reports in each sampled month, drawn as pen strokes (logarithmic height). Click a stroke to open that period.</div>
+      <svg id="hist" role="img" aria-label="Histogram of reports per sampled period"></svg>
+    </div>
+  </div>
+
+  <div class="caption">
+    <p><strong>What you see.</strong> Each dot is one half-degree cell of ocean where a ship wrote a weather report in the sampled month. Dark ink is the current period. The ink of earlier periods fades slowly, so old routes give way to new ones. From 1750 to 1855 the colored lines are single voyages from the CLIWOC logbooks, drawn by nation as the year counter advances. The platform switch adds the buoys and automatic stations that take over the oceans after 1980.</p>
+    <p><strong>What you hear.</strong> The wind is filtered noise. Its loudness and its pitch rise with the number of reports in the month. The rope creaks are short resonant bursts. Their rate follows the density of reports in the current view, and they are panned to where the ink falls. A soft ship bell rings when the counter enters a new century.</p>
+  </div>
+  <div class="source">
+    Sources: NOAA NCEI, ICOADS Release 3.1 (final untrimmed IMMA1 monthly files, 1662&ndash;2014), one sampled month per period, at most 20,000 reports per month.
+    CLIWOC 2.1 core records via PANGAEA, doi:10.1594/PANGAEA.743343 (CC BY 3.0). Coastlines: Natural Earth via world-atlas.
+    &middot; <a href="README.md">Read the room notes (README)</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const INK = '#3b2a14';
+  const NATION_COLOR = ['#c9561a', '#1f6fbf', '#9a8a10', '#9a3c9a', '#1f8f7a'];
+  const STEP_MS = 1500;          // time that the animation spends on one period
+  const FADE_PER_FRAME = 0.0055; // ink that disappears each frame, about 60% survives one period
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+  // ---------- small seeded random for hand-drawn wobble ----------
+  function mulberry(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- state ----------
+  const S = {
+    periods: null, cells: null, voyages: null, routes: null, land: null,
+    index: 0, playing: true, mode: 'ships', t: 1662, stepStart: 0,
+    W: 1200, H: 600, lastFrame: 0, pendingBloom: null, drawnVoyageProgress: null,
+    audio: null, started: false, lastCentury: 16, viewDensity: 0,
+  };
+
+  const mapCanvas = document.getElementById('map');
+  const ctx = mapCanvas.getContext('2d');
+  const paper = document.createElement('canvas');
+  const ink = document.createElement('canvas');
+  const routeLayer = document.createElement('canvas');
+  const pctx = paper.getContext('2d');
+  const ictx = ink.getContext('2d');
+  const rctx = routeLayer.getContext('2d');
+
+  function px(lon) { return (lon + 180) / 360 * S.W; }
+  function py(lat) { return (90 - lat) / 180 * S.H; }
+
+  // ---------- layout ----------
+  function resize() {
+    const wrap = mapCanvas.parentElement;
+    const w = Math.max(300, wrap.clientWidth - 2);
+    const h = Math.round(w / 2);
+    S.W = w; S.H = h;
+    for (const c of [mapCanvas, paper, ink, routeLayer]) {
+      c.width = Math.round(w * DPR); c.height = Math.round(h * DPR);
+    }
+    mapCanvas.style.height = h + 'px';
+    for (const c of [ctx, pctx, ictx, rctx]) c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawPaper();
+    if (S.periods) { renderStatic(S.index); }
+    drawHistogram();
+  }
+
+  // Draw the hand-ruled grid and the land on the paper layer.
+  function drawPaper() {
+    const W = S.W, H = S.H;
+    pctx.clearRect(0, 0, W, H);
+    const rnd = mulberry(7);
+    pctx.strokeStyle = 'rgba(122, 90, 51, 0.55)';
+    pctx.lineWidth = 0.6;
+    function wobbly(x0, y0, x1, y1) {
+      pctx.beginPath();
+      const n = 24;
+      for (let i = 0; i <= n; i++) {
+        const f = i / n;
+        const x = x0 + (x1 - x0) * f + (rnd() - 0.5) * 0.9;
+        const y = y0 + (y1 - y0) * f + (rnd() - 0.5) * 0.9;
+        if (i === 0) pctx.moveTo(x, y); else pctx.lineTo(x, y);
+      }
+      pctx.stroke();
+    }
+    for (let lon = -150; lon <= 150; lon += 30) wobbly(px(lon), 0, px(lon), H);
+    for (let lat = -60; lat <= 60; lat += 30) wobbly(0, py(lat), W, py(lat));
+    pctx.lineWidth = 1.1;
+    pctx.strokeStyle = 'rgba(90, 60, 25, 0.75)';
+    wobbly(0, py(0), W, py(0));
+    if (S.land) {
+      const proj = d3.geoEquirectangular().fitSize([W, H], { type: 'Sphere' });
+      const path = d3.geoPath(proj, pctx);
+      pctx.beginPath();
+      path(S.land);
+      pctx.fillStyle = 'rgba(214, 196, 158, 0.9)';
+      pctx.fill();
+      pctx.lineWidth = 0.9;
+      pctx.strokeStyle = 'rgba(80, 55, 25, 0.85)';
+      pctx.stroke();
+      // a faint second coast line, offset, like a double pen stroke
+      pctx.save();
+      pctx.translate(0.8, 0.8);
+      pctx.beginPath();
+      path(S.land);
+      pctx.lineWidth = 0.5;
+      pctx.strokeStyle = 'rgba(80, 55, 25, 0.3)';
+      pctx.stroke();
+      pctx.restore();
+    }
+    // graticule labels in small italic, drawn above the land
+    pctx.fillStyle = 'rgba(70, 50, 28, 0.9)';
+    pctx.font = `italic ${Math.max(9, W / 110)}px "IM Fell English", Georgia, serif`;
+    pctx.textAlign = 'left';
+    for (let lat = -60; lat <= 60; lat += 30) {
+      if (lat === 0) continue;
+      pctx.fillText(`${Math.abs(lat)}°${lat > 0 ? 'N' : 'S'}`, 4, py(lat) - 3);
+    }
+    pctx.textAlign = 'center';
+    const lonStep = W < 700 ? 60 : 30;
+    for (let lon = -180 + lonStep; lon <= 180 - lonStep; lon += lonStep) {
+      if (lon === 0) continue;
+      pctx.fillText(`${Math.abs(lon)}°${lon > 0 ? 'E' : 'W'}`, px(lon), H - 5);
+    }
+  }
+
+  // ---------- cell decoding ----------
+  function cellList(period) {
+    const out = [];
+    const a = S.cells;
+    for (let i = period.offset; i < period.offset + period.count; i++) {
+      const v = a[i];
+      out.push({ li: v >>> 23, lo: (v >>> 13) & 1023, s: (v >>> 6) & 127, o: v & 63 });
+    }
+    return out;
+  }
+
+  // Draw every cell of a period onto the ink layer with a given strength.
+  function drawCells(list, strength) {
+    const W = S.W;
+    const scale = W / 1200;                 // dots scale with the map
+    const dotScale = Math.max(0.3, scale);  // phones get very small dots
+    const alphaScale = 0.5 + 0.5 * Math.min(1, scale);
+    ictx.globalCompositeOperation = 'source-over';
+    for (const c of list) {
+      const n = S.mode === 'ships' ? c.s : c.s + c.o;
+      if (n === 0) continue;
+      const h = (c.li * 131 + c.lo * 17) % 97;
+      const jx = ((h % 10) / 10 - 0.5) * 0.6, jy = ((h / 10 | 0) % 10 / 10 - 0.5) * 0.6;
+      const x = px(c.lo / 2 - 180 + 0.25 + jx), y = py(c.li / 2 - 90 + 0.25 + jy);
+      const r = (0.55 + 0.42 * Math.sqrt(n)) * dotScale;
+      const alpha = Math.min(0.92, 0.28 + 0.13 * Math.sqrt(n)) * strength * alphaScale;
+      const shipOnly = S.mode === 'ships' || c.s >= c.o;
+      // bleed halo
+      ictx.fillStyle = `rgba(59, 42, 20, ${(alpha * 0.18).toFixed(3)})`;
+      ictx.beginPath(); ictx.arc(x, y, r * 2.1, 0, 6.2832); ictx.fill();
+      if (shipOnly) {
+        ictx.fillStyle = `rgba(59, 42, 20, ${alpha.toFixed(3)})`;
+        ictx.beginPath(); ictx.arc(x, y, r, 0, 6.2832); ictx.fill();
+      } else {
+        ictx.strokeStyle = `rgba(59, 42, 20, ${alpha.toFixed(3)})`;
+        ictx.lineWidth = Math.max(0.35, 0.7 * scale);
+        ictx.beginPath(); ictx.arc(x, y, r * 1.1, 0, 6.2832); ictx.stroke();
+      }
+    }
+  }
+
+  function fadeLayer(c, amount) {
+    c.globalCompositeOperation = 'destination-out';
+    c.fillStyle = `rgba(0,0,0,${amount})`;
+    c.fillRect(0, 0, S.W, S.H);
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  // Rebuild the ink from scratch for a period index: four earlier periods, faint to dark.
+  function renderStatic(index) {
+    ictx.clearRect(0, 0, S.W, S.H);
+    rctx.clearRect(0, 0, S.W, S.H);
+    for (let k = 4; k >= 1; k--) {
+      const i = index - k;
+      if (i < 0) continue;
+      drawCells(cellList(S.periods[i]), Math.pow(0.58, k));
+    }
+    drawCells(cellList(S.periods[index]), 1);
+    S.pendingBloom = null;
+    S.t = S.periods[index].year;
+    S.drawnVoyageProgress = new Map();
+    drawVoyagesStatic(S.t);
+    composite();
+  }
+
+  // Draw whole voyages whose span covers the previous 5 years, faded by age.
+  function drawVoyagesStatic(t) {
+    if (!S.voyages) return;
+    for (const v of S.voyages.v) {
+      if (v[2] < t - 6 || v[1] > t) continue;
+      const idx = Math.floor(Math.min(1, (t - v[1]) / Math.max(0.02, v[2] - v[1])) * (v[4] - 1));
+      const age = Math.max(0, t - v[2]);
+      strokeVoyage(v, 0, idx, 0.8 * Math.pow(0.7, age));
+      S.drawnVoyageProgress.set(v, idx);
+    }
+  }
+
+  // Stroke the points of a voyage from index i0 to index i1, inclusive.
+  function strokeVoyage(v, i0, i1, alpha) {
+    const pts = S.routes, off = v[3], n = v[4];
+    if (n < 2) return;
+    i0 = Math.max(0, i0); i1 = Math.min(n - 1, i1);
+    if (i1 <= i0) return;
+    rctx.strokeStyle = NATION_COLOR[v[0]];
+    rctx.globalAlpha = Math.min(0.85, alpha);
+    rctx.lineWidth = Math.max(0.8, 1.1 * S.W / 1200);
+    rctx.lineJoin = 'round'; rctx.lineCap = 'butt'; // butt caps: per-frame pieces do not overlap at vertices
+    rctx.beginPath();
+    let prevLon = null;
+    for (let i = i0; i <= i1; i++) {
+      const lat = pts[(off + i) * 2] / 100, lon = pts[(off + i) * 2 + 1] / 100;
+      if (prevLon !== null && Math.abs(lon - prevLon) > 180) { rctx.moveTo(px(lon), py(lat)); }
+      else if (i === i0) rctx.moveTo(px(lon), py(lat)); else rctx.lineTo(px(lon), py(lat));
+      prevLon = lon;
+    }
+    rctx.stroke();
+    rctx.globalAlpha = 1;
+  }
+
+  function composite() {
+    ctx.clearRect(0, 0, S.W, S.H);
+    ctx.drawImage(paper, 0, 0, S.W, S.H);
+    ctx.drawImage(ink, 0, 0, S.W, S.H);
+    ctx.drawImage(routeLayer, 0, 0, S.W, S.H);
+  }
+
+  // ---------- year counter ----------
+  const wheels = [0, 1, 2, 3].map(i => {
+    const el = document.getElementById('w' + i);
+    const col = document.createElement('div'); col.className = 'col';
+    for (let d = 0; d < 10; d++) { const s = document.createElement('span'); s.textContent = d; col.appendChild(s); }
+    el.appendChild(col);
+    return col;
+  });
+  let shownYear = -1;
+  function showYear(y) {
+    y = Math.round(y);
+    if (y === shownYear) return;
+    shownYear = y;
+    const str = String(y).padStart(4, '0');
+    for (let i = 0; i < 4; i++) wheels[i].style.transform = `translateY(-${(+str[i]) * 1.3}em)`;
+  }
+
+  // ---------- ledger text ----------
+  const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const fmt = n => n.toLocaleString('en-US');
+  const ALPHA_FLAGS = { NL: 'Dutch', UK: 'British', GB: 'British', ES: 'Spanish', FR: 'French', SE: 'Swedish', NO: 'Norwegian', RU: 'Russian', DE: 'German', US: 'American', JP: 'Japanese', SU: 'Soviet', CA: 'Canadian', DK: 'Danish', IT: 'Italian', IN: 'Indian', AU: 'Australian', NZ: 'New Zealand', PL: 'Polish', ZA: 'South African', BR: 'Brazilian', AR: 'Argentine', KR: 'Korean', CN: 'Chinese', GR: 'Greek', FI: 'Finnish', IS: 'Icelandic', PT: 'Portuguese', BE: 'Belgian', IE: 'Irish', CH: 'Swiss', TR: 'Turkish', EG: 'Egyptian', MX: 'Mexican', CL: 'Chilean', PE: 'Peruvian', PH: 'Philippine', MY: 'Malaysian', SG: 'Singaporean', HK: 'Hong Kong', TW: 'Taiwanese', UA: 'Ukrainian', EE: 'Estonian', LV: 'Latvian', LT: 'Lithuanian', HR: 'Croatian', BG: 'Bulgarian', RO: 'Romanian', IL: 'Israeli', PK: 'Pakistani', ID: 'Indonesian', TH: 'Thai', VN: 'Vietnamese', MA: 'Moroccan', NG: 'Nigerian', KE: 'Kenyan' };
+  function updateLedger(p) {
+    const months = p.months.length === 1 ? MONTHS[p.months[0]] : `${p.months.length} months`;
+    document.getElementById('ledgerCount').textContent =
+      `${fmt(p.total)} reports in ${months} ${p.year}` + (p.kept < p.total ? ` (${fmt(p.kept)} sampled)` : '');
+    document.getElementById('ledgerMix').textContent =
+      `ships ${fmt(p.ship)} · buoys ${fmt(p.buoy)} · stations and other ${fmt(p.other)}`;
+    const names = p.flags.filter(f => ALPHA_FLAGS[f[0]]).map(f => `${ALPHA_FLAGS[f[0]]} (${fmt(f[1])})`);
+    document.getElementById('ledgerFlags').textContent = names.length ? names.slice(0, 3).join(', ') : 'no legible flag in the sample';
+    const ch = document.getElementById('chapter');
+    if (p.year < 1750) ch.textContent = 'Chapter I · the first logbooks';
+    else if (p.year <= 1855) ch.textContent = 'Chapter II · the CLIWOC voyages';
+    else if (p.year < 1950) ch.textContent = 'Chapter III · the age of steam';
+    else ch.textContent = 'Chapter IV · ships, buoys and satellites';
+    document.getElementById('scrub').value = S.index;
+    drawHistogram();
+  }
+
+  // ---------- histogram as pen strokes ----------
+  function drawHistogram() {
+    if (!S.periods) return;
+    const svg = d3.select('#hist');
+    const W = svg.node().clientWidth || 600, H = svg.node().clientHeight || 120;
+    svg.attr('viewBox', `0 0 ${W} ${H}`);
+    svg.selectAll('*').remove();
+    const m = { l: 34, r: 8, t: 8, b: 18 };
+    const x = d3.scaleLinear().domain([1655, 2020]).range([m.l, W - m.r]);
+    const y = d3.scaleLog().domain([10, 3e6]).range([H - m.b, m.t]).clamp(true);
+    const rnd = mulberry(3);
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', H - m.b).attr('y2', H - m.b).attr('stroke', '#7a5a33').attr('stroke-width', 0.8);
+    for (const tick of [100, 10000, 1000000]) {
+      svg.append('text').attr('x', m.l - 4).attr('y', y(tick) + 3).attr('text-anchor', 'end').attr('font-size', 9).attr('fill', '#5b4428').attr('font-family', 'IM Fell English, Georgia, serif')
+        .text(tick >= 1e6 ? '1M' : tick >= 1e3 ? tick / 1e3 + 'k' : tick);
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(tick)).attr('y2', y(tick)).attr('stroke', '#7a5a33').attr('stroke-opacity', 0.25).attr('stroke-width', 0.5);
+    }
+    for (const yr of [1700, 1750, 1800, 1850, 1900, 1950, 2000]) {
+      if (W < 500 && yr % 100 !== 0) continue;
+      svg.append('text').attr('x', x(yr)).attr('y', H - 5).attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#5b4428').attr('font-family', 'IM Fell English, Georgia, serif').text(yr);
+    }
+    const bw = Math.max(2, (W - m.l - m.r) / 120);
+    S.periods.forEach((p, i) => {
+      const cx = x(p.year), top = y(p.total), base = H - m.b;
+      const cur = i === S.index;
+      const g = svg.append('g');
+      const strokes = Math.max(1, Math.round(bw / 1.6));
+      for (let k = 0; k < strokes; k++) {
+        const dx = (k - (strokes - 1) / 2) * 1.5 + (rnd() - 0.5) * 0.6;
+        g.append('path')
+          .attr('d', `M${cx + dx},${base} C ${cx + dx + (rnd() - 0.5)},${(base + top) / 2} ${cx + dx + (rnd() - 0.5)},${(base + top) / 2} ${cx + dx + (rnd() - 0.5) * 0.8},${top}`)
+          .attr('stroke', cur ? '#2a1a08' : '#5b4428').attr('stroke-opacity', cur ? 0.95 : 0.55 - (i < S.index ? 0 : 0.2))
+          .attr('stroke-width', cur ? 1.6 : 1).attr('fill', 'none').attr('stroke-linecap', 'round');
+      }
+      if (cur) g.append('circle').attr('cx', cx).attr('cy', top - 4).attr('r', 2).attr('fill', '#2a1a08');
+      svg.append('rect').attr('class', 'hit').attr('x', cx - 3).attr('y', m.t).attr('width', 6).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+        .append('title').text(`${p.year}: ${fmt(p.total)} reports`);
+      svg.select('rect.hit:last-of-type').on('click', () => jumpTo(i));
+    });
+  }
+
+  // ---------- playback ----------
+  function jumpTo(i) {
+    S.index = Math.max(0, Math.min(S.periods.length - 1, i));
+    S.stepStart = performance.now();
+    renderStatic(S.index);
+    showYear(S.periods[S.index].year);
+    updateLedger(S.periods[S.index]);
+    S.lastCentury = Math.floor(S.periods[S.index].year / 100);
+  }
+
+  function beginStep(i) {
+    S.index = i;
+    S.stepStart = performance.now();
+    const p = S.periods[i];
+    const list = cellList(p);
+    // bloom order: shuffle deterministically so dots appear across the map
+    const rnd = mulberry(p.year);
+    for (let k = list.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); const t = list[k]; list[k] = list[j]; list[j] = t; }
+    S.pendingBloom = { list, drawn: 0 };
+    updateLedger(p);
+    S.viewDensity = 0;
+    if (S.audio) S.audio.setPeriod(p);
+  }
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!S.periods) return;
+    const dt = Math.min(50, now - (S.lastFrame || now));
+    S.lastFrame = now;
+    if (!S.playing) return;
+    const p = S.periods[S.index];
+    const prevYear = S.index > 0 ? S.periods[S.index - 1].year : p.year;
+    const elapsed = now - S.stepStart;
+    const f = Math.min(1, elapsed / STEP_MS);
+    // the year counter rolls during the first 55% of the step
+    const roll = Math.min(1, f / 0.55);
+    const tNew = prevYear + (p.year - prevYear) * roll;
+    // fade old ink, then draw part of the bloom
+    const fade = FADE_PER_FRAME * dt / 16.7;
+    fadeLayer(ictx, fade);
+    fadeLayer(rctx, fade * 0.8);
+    if (S.pendingBloom && S.pendingBloom.drawn < S.pendingBloom.list.length) {
+      const b = S.pendingBloom;
+      const target = Math.floor(b.list.length * Math.min(1, elapsed / (STEP_MS * 0.7)));
+      if (target > b.drawn) {
+        drawCells(b.list.slice(b.drawn, target), 1);
+        b.drawn = target;
+      }
+    }
+    // voyages advance with the rolling year
+    if (S.voyages && tNew >= 1662 && tNew <= 1857) {
+      for (const v of S.voyages.v) {
+        if (v[1] > tNew || v[2] < S.t - 0.01) continue;
+        const prev = S.drawnVoyageProgress.get(v) || 0;
+        const idx = Math.floor(Math.min(1, (tNew - v[1]) / Math.max(0.02, v[2] - v[1])) * (v[4] - 1));
+        if (idx > prev) { strokeVoyage(v, prev, idx, 0.8); S.drawnVoyageProgress.set(v, idx); }
+      }
+    }
+    S.t = tNew;
+    showYear(tNew);
+    const century = Math.floor(tNew / 100);
+    if (century > S.lastCentury) { S.lastCentury = century; if (S.audio) S.audio.bell(century); }
+    if (S.audio) S.audio.tick(dt, f);
+    composite();
+    if (f >= 1) {
+      if (S.index + 1 < S.periods.length) beginStep(S.index + 1);
+      else { S.playing = false; document.getElementById('play').textContent = 'Play again'; document.getElementById('play').setAttribute('aria-pressed', 'false'); if (S.audio) S.audio.rest(); }
+    }
+  }
+
+  // ---------- controls ----------
+  const playBtn = document.getElementById('play');
+  playBtn.addEventListener('click', () => {
+    if (!S.playing && S.index === S.periods.length - 1 && playBtn.textContent === 'Play again') {
+      jumpTo(0); S.playing = true; beginStep(0);
+    } else {
+      S.playing = !S.playing;
+      if (S.playing) { S.stepStart = performance.now() - (S.pendingBloom ? 0 : STEP_MS * 0.6); }
+    }
+    playBtn.textContent = S.playing ? 'Pause' : 'Play';
+    playBtn.setAttribute('aria-pressed', String(S.playing));
+    if (S.audio) { if (S.playing) S.audio.setPeriod(S.periods[S.index]); else S.audio.rest(); }
+  });
+  document.getElementById('back').addEventListener('click', () => { jumpTo(S.index - 1); });
+  document.getElementById('fwd').addEventListener('click', () => { jumpTo(S.index + 1); });
+  document.getElementById('scrub').addEventListener('input', e => { jumpTo(+e.target.value); if (S.audio) S.audio.setPeriod(S.periods[S.index]); });
+  function setMode(m) {
+    S.mode = m;
+    document.getElementById('modeShips').setAttribute('aria-pressed', String(m === 'ships'));
+    document.getElementById('modeAll').setAttribute('aria-pressed', String(m === 'all'));
+    renderStatic(S.index);
+  }
+  document.getElementById('modeShips').addEventListener('click', () => setMode('ships'));
+  document.getElementById('modeAll').addEventListener('click', () => setMode('all'));
+  window.addEventListener('resize', resize);
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === ' ') { e.preventDefault(); playBtn.click(); }
+    if (e.key === 'ArrowLeft') jumpTo(S.index - 1);
+    if (e.key === 'ArrowRight') jumpTo(S.index + 1);
+  });
+
+  // ---------- sound ----------
+  function makeAudio(ac, master) {
+    if (!ac) return null;
+    const bus = ac.createGain(); bus.gain.value = 1;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800; lp.Q.value = 0.5;
+    const dry = ac.createGain(); dry.gain.value = 0.75;
+    const wet = ac.createGain(); wet.gain.value = 0.45;
+    const conv = ac.createConvolver();
+    // generated impulse response: 2.4 s of decaying noise
+    const irLen = Math.floor(ac.sampleRate * 2.4);
+    const ir = ac.createBuffer(2, irLen, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.6) * 0.5;
+    }
+    conv.buffer = ir;
+    // a gentle compressor keeps the sum of wind, creaks and bell below clipping
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.3;
+    bus.connect(lp); lp.connect(dry); lp.connect(conv); conv.connect(wet); dry.connect(comp); wet.connect(comp); comp.connect(master);
+
+    // noise buffer, 3 s, softened toward pink by a one-pole filter
+    const nLen = ac.sampleRate * 3;
+    const nb = ac.createBuffer(1, nLen, ac.sampleRate);
+    const nd = nb.getChannelData(0);
+    let last = 0;
+    let peak = 0;
+    for (let i = 0; i < nLen; i++) { const w = Math.random() * 2 - 1; last = 0.96 * last + 0.04 * w; nd[i] = last * 6 + w * 0.15; peak = Math.max(peak, Math.abs(nd[i])); }
+    for (let i = 0; i < nLen; i++) nd[i] /= peak; // normalize to a peak of 1
+    // wind: noise -> bandpass -> gain
+    const windSrc = ac.createBufferSource(); windSrc.buffer = nb; windSrc.loop = true;
+    const windBp = ac.createBiquadFilter(); windBp.type = 'bandpass'; windBp.frequency.value = 400; windBp.Q.value = 0.9;
+    const windGain = ac.createGain(); windGain.gain.value = 0.0;
+    const windPan = ac.createStereoPanner();
+    windSrc.connect(windBp); windBp.connect(windGain); windGain.connect(windPan); windPan.connect(bus);
+    windSrc.start();
+    // slow gust modulation of the wind filter
+    const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.09;
+    const lfoGain = ac.createGain(); lfoGain.gain.value = 120;
+    lfo.connect(lfoGain); lfoGain.connect(windBp.frequency); lfo.start();
+    const lfo2 = ac.createOscillator(); lfo2.type = 'sine'; lfo2.frequency.value = 0.23;
+    const lfo2Gain = ac.createGain(); lfo2Gain.gain.value = 0.02;
+    lfo2.connect(lfo2Gain); lfo2Gain.connect(windGain.gain); lfo2.start();
+
+    let level = 0, creakRate = 0.3, creakClock = 0, density = 0;
+    const api = {
+      setPeriod(p) {
+        // level and cutoff follow log10 of reports (31 .. 2.1 million)
+        const n = Math.max(1, p.total);
+        level = Math.min(1, Math.max(0, (Math.log10(n) - 1.2) / 5.2));
+        const t = ac.currentTime;
+        windGain.gain.cancelScheduledValues(t);
+        windGain.gain.setTargetAtTime(0.05 + 0.20 * level, t, 0.6);
+        windBp.frequency.cancelScheduledValues(t);
+        windBp.frequency.setTargetAtTime(260 + 900 * level, t, 0.8);
+        windBp.Q.setTargetAtTime(0.7 + 0.8 * level, t, 0.8);
+        // creak rate follows the density of occupied cells in the current view
+        density = Math.min(1, p.count / 12000);
+        creakRate = 0.25 + 3.2 * density;
+      },
+      rest() {
+        const t = ac.currentTime;
+        windGain.gain.setTargetAtTime(0.03, t, 1.2);
+        creakRate = 0.15;
+      },
+      tick(dt, f) {
+        creakClock += dt / 1000;
+        if (creakClock >= 1 / creakRate) {
+          creakClock = -Math.random() * 0.4 / creakRate;
+          api.creak();
+        }
+      },
+      creak() {
+        // a short noise burst through a sharp resonance that slides down in pitch
+        const t = ac.currentTime;
+        const src = ac.createBufferSource(); src.buffer = nb; src.loop = true; src.playbackRate.value = 0.5 + Math.random();
+        const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 14 + Math.random() * 14;
+        const f0 = 140 + Math.random() * 360;
+        bp.frequency.setValueAtTime(f0 * 1.35, t); bp.frequency.exponentialRampToValueAtTime(f0, t + 0.12);
+        const g = ac.createGain();
+        const len = 0.08 + Math.random() * 0.12;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.06 + 0.05 * density, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        const pan = ac.createStereoPanner(); pan.pan.value = Math.random() * 1.6 - 0.8;
+        src.connect(bp); bp.connect(g); g.connect(pan); pan.connect(bus);
+        src.start(t); src.stop(t + len + 0.05);
+      },
+      bell(century) {
+        // a soft ship bell: three partials with long decays, pitch by century
+        const t = ac.currentTime;
+        const base = 392 * Math.pow(2, ((century - 17) % 4) / 12);
+        const partials = [[1, 0.09], [1.5, 0.05], [2.0, 0.035], [2.75, 0.02]];
+        for (const [ratio, amp] of partials) {
+          const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = base * ratio;
+          const g = ac.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(amp, t + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6 / Math.sqrt(ratio));
+          o.connect(g); g.connect(bus);
+          o.start(t); o.stop(t + 3);
+        }
+        // second strike, as on a ship's bell
+        setTimeout(() => {
+          const t2 = ac.currentTime;
+          const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = base;
+          const g = ac.createGain();
+          g.gain.setValueAtTime(0.0001, t2); g.gain.exponentialRampToValueAtTime(0.07, t2 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t2 + 2.2);
+          o.connect(g); g.connect(bus); o.start(t2); o.stop(t2 + 2.5);
+        }, 420);
+      }
+    };
+    return api;
+  }
+
+  // ---------- data loading ----------
+  const dataReady = Promise.all([
+    fetch('data/periods.json').then(r => r.json()),
+    fetch('data/cells.bin').then(r => r.arrayBuffer()).then(b => new Uint32Array(b)),
+    fetch('data/voyages.json').then(r => r.json()),
+    fetch('data/routes.bin').then(r => r.arrayBuffer()).then(b => new Int16Array(b)),
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json').then(r => r.json()).catch(() => null),
+  ]).then(([periods, cells, voyages, routes, world]) => {
+    S.periods = periods.periods; S.cells = cells; S.voyages = voyages; S.routes = routes;
+    S.land = world ? topojson.feature(world, world.objects.land) : null;
+    document.getElementById('scrub').max = S.periods.length - 1;
+    document.getElementById('loading').remove();
+    resize();
+    jumpTo(0);
+  }).catch(err => {
+    document.getElementById('loading').textContent = 'The ledgers could not be opened: ' + err.message;
+  });
+
+  resize();
+  requestAnimationFrame(frame);
+
+  Gallery.mount({
+    slug: 'ship-logbooks',
+    title: 'Four Centuries of Logbooks',
+    blurb: 'Marine weather reports from ship logbooks, 1662 to 2014, bloom on aged paper year by year. The wind rises with the number of reports, ropes creak with their density, and a bell marks each new century.',
+    onStart(audioCtx, masterGain) {
+      S.started = true;
+      S.audio = makeAudio(audioCtx, masterGain);
+      dataReady.then(() => {
+        // optional deep link: #y=1985&mode=all&pause
+        const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+        let start = 0;
+        if (h.get('y')) { const y = +h.get('y'); start = S.periods.findIndex(p => p.year >= y); if (start < 0) start = 0; }
+        if (h.get('mode') === 'all') setMode('all');
+        S.playing = !h.has('pause');
+        playBtn.textContent = S.playing ? 'Pause' : 'Play'; playBtn.setAttribute('aria-pressed', String(S.playing));
+        jumpTo(start);
+        if (S.playing) beginStep(start); else if (S.audio) S.audio.setPeriod(S.periods[start]);
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>
