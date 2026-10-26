@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Citation Galaxy</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cormorant-garamond@5.2.5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cormorant-sc@5.2.5/index.css">
+<style>
+  :root {
+    --navy: #0b1432; --ink: #02040c; --gold: #e6c67a; --brass: #b99a5b; --blue: #a9c4ef;
+    --text: #efe6d0; --muted: #a7b4cf; --panel: rgba(6, 11, 30, 0.72); --line: rgba(201, 168, 90, 0.32);
+    --serif: "Cormorant Garamond", "Cormorant", Georgia, "Times New Roman", serif;
+    --sc: "Cormorant SC", "Cormorant Garamond", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); color: var(--text); font-family: var(--serif); }
+  body { background: radial-gradient(ellipse at 50% 45%, #121d45 0%, #080f2a 45%, #02040c 100%); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #gl { z-index: 1; }
+  #ov { z-index: 2; pointer-events: none; }
+  .panel { position: fixed; z-index: 5; background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    backdrop-filter: blur(6px); padding: 12px 14px; }
+  .sc { font-family: var(--sc); letter-spacing: 0.16em; text-transform: lowercase; font-variant: small-caps; }
+  .title { left: 16px; top: 16px; width: 320px; }
+  .title h1 { margin: 0 0 2px; font-family: var(--sc); font-weight: 400; font-size: 26px; letter-spacing: 0.18em; color: var(--gold); line-height: 1.1; }
+  .title .sub { margin: 0 0 8px; font-family: var(--sc); font-size: 12px; letter-spacing: 0.22em; color: var(--muted); }
+  .title p { margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--text); }
+  .title .mini { display: none; font-size: 12.5px; color: var(--muted); margin: 0 0 4px; line-height: 1.35; }
+  .title .src { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .title a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted var(--brass); }
+  details summary { cursor: pointer; font-family: var(--sc); letter-spacing: 0.18em; font-size: 12px; color: var(--muted); list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: " +"; color: var(--brass); }
+  details[open] summary::after { content: " –"; }
+  .legend { right: 16px; top: 16px; width: 232px; }
+  .legend h2 { margin: 0 0 8px; font-family: var(--sc); font-weight: 400; font-size: 13px; letter-spacing: 0.22em; color: var(--gold); }
+  .legend .row { display: flex; align-items: center; gap: 10px; margin: 5px 0; font-size: 13px; color: var(--text); }
+  .legend svg { flex: 0 0 auto; }
+  .legend .note { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .controls { position: fixed; z-index: 6; left: 50%; bottom: 56px; transform: translateX(-50%); width: min(760px, calc(100% - 24px));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; backdrop-filter: blur(6px); padding: 10px 14px;
+    display: grid; grid-template-columns: auto auto 1fr auto auto; grid-template-areas: "play year slider speed search"; gap: 10px 14px; align-items: center; }
+  .btn { font-family: var(--sc); letter-spacing: 0.18em; font-size: 13px; color: var(--gold); background: transparent;
+    border: 1px solid var(--brass); border-radius: 999px; padding: 6px 14px; cursor: pointer; min-width: 84px; }
+  .btn:hover { background: rgba(201, 168, 90, 0.12); }
+  #play { grid-area: play; }
+  #year { grid-area: year; font-family: var(--sc); font-size: 30px; letter-spacing: 0.08em; color: var(--gold); min-width: 86px; text-align: center; line-height: 1; }
+  #slider { grid-area: slider; width: 100%; -webkit-appearance: none; appearance: none; height: 2px; background: linear-gradient(90deg, var(--gold) var(--pct, 0%), rgba(201,168,90,0.25) var(--pct, 0%)); outline: none; margin: 0; }
+  #slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--gold); border: 1px solid #fff2c9; box-shadow: 0 0 8px rgba(230, 198, 122, 0.8); cursor: pointer; }
+  #slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--gold); border: 1px solid #fff2c9; cursor: pointer; }
+  select, input[type=search] { font-family: var(--serif); font-size: 14px; color: var(--text); background: rgba(2, 4, 12, 0.5); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; }
+  #speed { grid-area: speed; font-family: var(--sc); letter-spacing: 0.12em; }
+  .search { grid-area: search; position: relative; }
+  #search { width: 190px; }
+  #results { position: absolute; left: 0; bottom: calc(100% + 6px); width: 300px; max-height: 240px; overflow: auto; margin: 0; padding: 4px 0; list-style: none;
+    background: rgba(6, 11, 30, 0.95); border: 1px solid var(--line); border-radius: 4px; display: none; }
+  #results li { padding: 5px 10px; font-size: 14px; cursor: pointer; }
+  #results li:hover { background: rgba(201, 168, 90, 0.14); }
+  #results li span { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .tip { position: fixed; z-index: 7; pointer-events: none; display: none; max-width: 260px; padding: 8px 11px; background: rgba(6, 11, 30, 0.92);
+    border: 1px solid var(--line); border-radius: 3px; font-size: 14px; line-height: 1.35; }
+  .tip b { font-weight: 400; color: var(--gold); display: block; }
+  .tip .m { color: var(--muted); font-size: 12.5px; }
+  @media (max-width: 760px) {
+    .title { left: 10px; top: 10px; width: calc(100% - 20px); padding: 9px 11px; }
+    .title h1 { font-size: 19px; }
+    .title .sub { font-size: 10px; margin-bottom: 4px; }
+    .title p { font-size: 13px; }
+    .title .mini { display: block; }
+    .legend { right: auto; left: 10px; top: auto; bottom: 192px; width: calc(100% - 20px); padding: 8px 11px; }
+    .legend .row { font-size: 12px; margin: 3px 0; }
+    .legend .note { font-size: 11px; }
+    .controls { bottom: 52px; width: calc(100% - 20px); padding: 8px 10px; grid-template-columns: auto 1fr auto;
+      grid-template-areas: "play year speed" "slider slider slider" "search search search"; gap: 8px 10px; }
+    #year { font-size: 24px; }
+    #search { width: 100%; }
+    #results { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov"></canvas>
+
+<header class="panel title">
+  <h1>The Citation Galaxy</h1>
+  <p class="sub">Supreme Court opinions · 1754 – 2015</p>
+  <p class="mini">Stars are opinions, old at the center. Lines are citations. Plucks are citations to bright stars.</p>
+  <details id="caption" open>
+    <summary>What you see and hear</summary>
+    <p>Every star is a Supreme Court opinion. Old opinions sit near the center and new opinions near the rim. A line is a citation.
+      It flashes in the year of the citing opinion and then settles. Gold stars are the 300 most cited opinions.
+      Constellations join the brightest stars of one citation community.</p>
+    <p style="margin-top:6px">The drone moves its root with each century. Each citation to a bright star plucks a string.
+      Deep notes mark famous cases. The pan follows the star's position.</p>
+    <p class="src">Source: Caselaw Access Project, United States Reports volumes 1 – 572 (static.case.law), hosted by the Free Law Project.
+      <a href="README.md">Read the README</a></p>
+  </details>
+</header>
+
+<aside class="panel legend">
+  <details id="legendBox" open>
+    <summary>Star chart legend</summary>
+    <div class="row"><svg width="46" height="18"><circle cx="8" cy="9" r="1.6" fill="#a9c4ef"/><circle cx="22" cy="9" r="3.2" fill="#a9c4ef"/><circle cx="39" cy="9" r="5.2" fill="#a9c4ef"/></svg><span>10 · 100 · 1,000 citations received</span></div>
+    <div class="row"><svg width="46" height="18"><circle cx="23" cy="9" r="5" fill="#e6c67a"/><circle cx="23" cy="9" r="8" fill="#e6c67a" fill-opacity="0.25"/></svg><span>Gold: among the 300 most cited</span></div>
+    <div class="row"><svg width="46" height="18"><circle cx="23" cy="9" r="3.5" fill="#a9c4ef"/></svg><span>Pale blue: all other opinions</span></div>
+    <div class="row"><svg width="46" height="18"><line x1="4" y1="14" x2="42" y2="4" stroke="#a9c4ef" stroke-opacity="0.8" stroke-width="1"/></svg><span>Citation, flashes in its year</span></div>
+    <div class="row"><svg width="46" height="18"><line x1="4" y1="12" x2="22" y2="5" stroke="#e6c67a" stroke-width="1"/><line x1="22" y1="5" x2="42" y2="13" stroke="#e6c67a" stroke-width="1"/><circle cx="4" cy="12" r="2" fill="#e6c67a"/><circle cx="22" cy="5" r="2" fill="#e6c67a"/><circle cx="42" cy="13" r="2" fill="#e6c67a"/></svg><span>Constellation: one citation community</span></div>
+    <div class="row"><svg width="46" height="18"><circle cx="23" cy="9" r="9" fill="none" stroke="#b99a5b" stroke-opacity="0.6" stroke-width="0.8"/></svg><span>Rings: decision year</span></div>
+    <p class="note" id="legendNote">Hover or tap a star for the case name. Lines are a random sample of the citations between the drawn stars.</p>
+  </details>
+</aside>
+
+<div class="tip" id="tip"></div>
+
+<footer class="controls">
+  <button class="btn" id="play">Pause</button>
+  <div id="year">1754</div>
+  <input id="slider" type="range" min="1754" max="2015" step="1" value="1754" aria-label="Year">
+  <select id="speed" aria-label="Speed"><option value="3">slow</option><option value="6" selected>normal</option><option value="14">fast</option></select>
+  <div class="search"><input id="search" type="search" placeholder="Find a case…" autocomplete="off" aria-label="Find a case"><ul id="results"></ul></div>
+</footer>
+
+<script src="../../shared/room.js"></script>
+<script type="module">
+import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
+
+const $ = (s) => document.querySelector(s);
+const S = {
+  nodes: null, meta: null, edges: null, n: 0, E: 0,
+  year: 1754, ymin: 1754, ymax: 2015, playing: true, speed: 6, hold: 0,
+  rot: 0, R: 300, cx: 0, cy: 0, sizeScale: 1,
+  hover: -1, selected: -1, ptr: 0, started: false, loaded: false,
+  edgeOrder: null, edgeYearF: null, goldCut: 0, maxIndeg: 1, ringYears: [],
+  ignited: null, goldQueue: [],
+};
+const GOLD = new THREE.Color(0.93, 0.80, 0.47);
+const BLUE = new THREE.Color(0.66, 0.77, 0.94);
+const DUST = new THREE.Color(0.52, 0.62, 0.84);
+
+/* ---------- data ---------- */
+async function load() {
+  const [nodes, meta, buf] = await Promise.all([
+    fetch('data/nodes.json').then((r) => r.json()),
+    fetch('data/meta.json').then((r) => r.json()),
+    fetch('data/edges.u16').then((r) => r.arrayBuffer()),
+  ]);
+  S.nodes = nodes; S.meta = meta; S.edges = new Uint16Array(buf);
+  S.n = nodes.n; S.E = S.edges.length / 2;
+  S.ymin = meta.year_min; S.ymax = meta.year_max; S.year = S.ymin;
+  // A ?year=1990 parameter starts the clock at that year. It helps when you check a late state.
+  const q = new URLSearchParams(location.search).get('year');
+  if (q && !isNaN(+q)) S.startYear = Math.max(S.ymin, Math.min(S.ymax, +q));
+  const sl = $('#slider'); sl.min = S.ymin; sl.max = S.ymax; sl.value = S.ymin;
+  $('.title .sub').textContent = `Supreme Court opinions · ${S.ymin} – ${S.ymax}`;
+  const sorted = nodes.indeg.slice().sort((a, b) => b - a);
+  S.goldCut = sorted[Math.min(299, sorted.length - 1)];
+  S.maxIndeg = sorted[0];
+  // Edge order by fractional citing year. The fraction spreads the flashes over the year.
+  S.edgeYearF = new Float32Array(S.E);
+  for (let i = 0; i < S.E; i++) {
+    const s = S.edges[2 * i];
+    S.edgeYearF[i] = nodes.year[s] + hash01(i);
+  }
+  S.edgeOrder = Array.from({ length: S.E }, (_, i) => i).sort((a, b) => S.edgeYearF[a] - S.edgeYearF[b]);
+  // Ring radii for the astrolabe. Median radius of the stars near each marker year.
+  for (const y of [1800, 1850, 1900, 1950, 2000]) {
+    const rs = [];
+    for (let i = 0; i < S.n; i++) if (Math.abs(nodes.year[i] - y) <= 1) rs.push(Math.hypot(nodes.x[i], nodes.y[i]));
+    if (rs.length > 5) { rs.sort((a, b) => a - b); S.ringYears.push([y, rs[rs.length >> 1]]); }
+  }
+  S.ignited = new Uint8Array(S.n);
+  $('#legendNote').textContent = `${S.n.toLocaleString()} stars and ${S.E.toLocaleString()} citation lines. Hover or tap a star for the case name. ` +
+    `Lines are a random sample of the citations between the drawn stars.`;
+  buildScene();
+  S.loaded = true;
+  if (S.startYear) setYear(S.startYear, true);
+}
+function hash01(i) { let x = (i + 1) * 2654435761; x ^= x >>> 15; x = Math.imul(x, 2246822519); x ^= x >>> 13; return ((x >>> 0) % 1000) / 1000; }
+function starSize(d) { return 1.1 + 1.9 * Math.log10(1 + d); }
+function isGold(i) { return S.nodes.indeg[i] >= S.goldCut && S.nodes.indeg[i] > 0; }
+
+/* ---------- three.js scene ---------- */
+let renderer, scene, camera, group, starMat, lineMat;
+function buildScene() {
+  const gl = $('#gl');
+  renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: false, alpha: true, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setClearColor(0x000000, 0);
+  scene = new THREE.Scene();
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
+  group = new THREE.Group();
+  scene.add(group);
+  const nd = S.nodes;
+  // Stars.
+  const pos = new Float32Array(S.n * 3), size = new Float32Array(S.n), yr = new Float32Array(S.n);
+  const col = new Float32Array(S.n * 3), gold = new Float32Array(S.n), idx = new Float32Array(S.n), wgt = new Float32Array(S.n);
+  const lmax = Math.log10(1 + S.maxIndeg);
+  for (let i = 0; i < S.n; i++) {
+    pos[3 * i] = nd.x[i]; pos[3 * i + 1] = nd.y[i]; pos[3 * i + 2] = 0;
+    size[i] = starSize(nd.indeg[i]); yr[i] = nd.year[i] + hash01(i + 7919) * 0.8; idx[i] = i;
+    wgt[i] = Math.log10(1 + nd.indeg[i]) / lmax;
+    const g = isGold(i); gold[i] = g ? 1 : 0;
+    const c = g ? GOLD : (nd.indeg[i] < S.meta.min_indeg_kept ? DUST : BLUE);
+    col[3 * i] = c.r; col[3 * i + 1] = c.g; col[3 * i + 2] = c.b;
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  sg.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  sg.setAttribute('aYear', new THREE.BufferAttribute(yr, 1));
+  sg.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  sg.setAttribute('aGold', new THREE.BufferAttribute(gold, 1));
+  sg.setAttribute('aIndex', new THREE.BufferAttribute(idx, 1));
+  sg.setAttribute('aW', new THREE.BufferAttribute(wgt, 1));
+  starMat = new THREE.ShaderMaterial({
+    uniforms: { uYear: { value: S.ymin }, uDpr: { value: renderer.getPixelRatio() }, uSizeScale: { value: 1 }, uHover: { value: -1 }, uSelected: { value: -1 } },
+    vertexShader: `
+      attribute float aSize; attribute float aYear; attribute vec3 aColor; attribute float aGold; attribute float aIndex; attribute float aW;
+      uniform float uYear; uniform float uDpr; uniform float uSizeScale; uniform float uHover; uniform float uSelected;
+      varying vec3 vColor; varying float vAlpha; varying float vFlash;
+      void main() {
+        float t = uYear - aYear;
+        float on = step(0.0, t);
+        float flash = exp(-max(t, 0.0) * 1.1);
+        float hi = (abs(aIndex - uHover) < 0.5 || abs(aIndex - uSelected) < 0.5) ? 1.0 : 0.0;
+        vFlash = flash + 0.4 * hi;
+        vAlpha = on * (0.07 + 0.18 * aW + 0.55 * aGold + 0.55 * flash + 0.4 * hi);
+        vColor = aColor;
+        float s = aSize * uSizeScale * (1.0 + 1.6 * flash + 0.8 * hi + 0.5 * aGold);
+        gl_PointSize = s * 2.0 * uDpr * on;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying vec3 vColor; varying float vAlpha; varying float vFlash;
+      void main() {
+        vec2 p = gl_PointCoord - 0.5; float d = length(p) * 2.0;
+        float core = smoothstep(0.36, 0.0, d);
+        float halo = exp(-d * d * 10.0) * 0.12;
+        float a = (core + halo) * vAlpha;
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(vColor + vFlash * 0.45, a);
+      }`,
+    transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  group.add(new THREE.Points(sg, starMat));
+  // Citation lines.
+  const lp = new Float32Array(S.E * 6), ly = new Float32Array(S.E * 2), lw = new Float32Array(S.E * 2), lg = new Float32Array(S.E * 2);
+  const lm = Math.log10(1 + S.maxIndeg);
+  for (let i = 0; i < S.E; i++) {
+    const s = S.edges[2 * i], t = S.edges[2 * i + 1];
+    lp[6 * i] = nd.x[s]; lp[6 * i + 1] = nd.y[s]; lp[6 * i + 3] = nd.x[t]; lp[6 * i + 4] = nd.y[t];
+    const w = Math.log10(1 + nd.indeg[t]) / lm, g = isGold(t) ? 1 : 0;
+    ly[2 * i] = ly[2 * i + 1] = S.edgeYearF[i];
+    lw[2 * i] = lw[2 * i + 1] = w; lg[2 * i] = lg[2 * i + 1] = g;
+  }
+  const lgm = new THREE.BufferGeometry();
+  lgm.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+  lgm.setAttribute('aYear', new THREE.BufferAttribute(ly, 1));
+  lgm.setAttribute('aW', new THREE.BufferAttribute(lw, 1));
+  lgm.setAttribute('aGold', new THREE.BufferAttribute(lg, 1));
+  lineMat = new THREE.ShaderMaterial({
+    uniforms: { uYear: { value: S.ymin } },
+    vertexShader: `
+      attribute float aYear; attribute float aW; attribute float aGold;
+      uniform float uYear; varying float vAlpha; varying vec3 vColor;
+      void main() {
+        float t = uYear - aYear;
+        float on = step(0.0, t);
+        float flash = exp(-max(t, 0.0) * 1.4);
+        vAlpha = on * (0.002 + 0.012 * aW + flash * (0.2 + 0.45 * aW));
+        vColor = mix(vec3(0.60, 0.72, 0.95), vec3(0.95, 0.82, 0.50), aGold * 0.85);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying float vAlpha; varying vec3 vColor;
+      void main() { if (vAlpha < 0.003) discard; gl_FragColor = vec4(vColor, vAlpha); }`,
+    transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  group.add(new THREE.LineSegments(lgm, lineMat));
+  resize();
+}
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const mobile = w < 760;
+  // Desktop: the galaxy sits between the title panel (left) and the legend (right).
+  S.R = mobile ? 0.41 * w : Math.max(150, Math.min(0.40 * h, (w - 620) / 2 - 30));
+  S.cx = mobile ? w / 2 : 352 + (w - 352 - 264) / 2; S.cy = mobile ? h * 0.47 : h * 0.5 - 8;
+  S.sizeScale = mobile ? 0.72 : 1;
+  if (!renderer) return;
+  renderer.setSize(w, h, false);
+  camera.left = -w / 2; camera.right = w / 2; camera.top = h / 2; camera.bottom = -h / 2; camera.updateProjectionMatrix();
+  starMat.uniforms.uSizeScale.value = S.sizeScale;
+  const ov = $('#ov'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); ov.style.width = w + 'px'; ov.style.height = h + 'px';
+}
+window.addEventListener('resize', resize);
+
+/* ---------- transforms ---------- */
+function toScreen(x, y) {
+  const c = Math.cos(S.rot), s = Math.sin(S.rot);
+  return [S.cx + S.R * (x * c - y * s) + S.driftX, S.cy - S.R * (x * s + y * c) + S.driftY];
+}
+S.driftX = 0; S.driftY = 0;
+function toGalaxy(mx, my) {
+  const u = (mx - S.cx - S.driftX) / S.R, v = -(my - S.cy - S.driftY) / S.R;
+  const c = Math.cos(S.rot), s = Math.sin(S.rot);
+  return [u * c + v * s, -u * s + v * c];
+}
+function nearest(mx, my, radiusPx) {
+  const [gx, gy] = toGalaxy(mx, my);
+  const r2 = (radiusPx / S.R) ** 2;
+  let best = -1, bd = r2;
+  const nd = S.nodes;
+  for (let i = 0; i < S.n; i++) {
+    if (nd.year[i] > S.year) continue;
+    const dx = nd.x[i] - gx, dy = nd.y[i] - gy, d = dx * dx + dy * dy;
+    const bonus = 1 + 0.08 * starSize(nd.indeg[i]);
+    if (d / bonus < bd) { bd = d / bonus; best = i; }
+  }
+  return best;
+}
+
+/* ---------- overlay: astrolabe rings, constellations, markers ---------- */
+function drawOverlay() {
+  const ov = $('#ov'), ctx = ov.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, ov.width, ov.height);
+  const w = window.innerWidth, mobile = w < 760;
+  const cx = S.cx + S.driftX, cy = S.cy + S.driftY, R = S.R;
+  ctx.lineWidth = 0.7;
+  // Inner rings: the radius of each marker year.
+  ctx.font = `${mobile ? 9 : 10.5}px "Cormorant Garamond", Georgia, serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (const [y, r] of S.ringYears) {
+    const lit = y <= S.year;
+    ctx.strokeStyle = `rgba(201,168,90,${lit ? 0.2 : 0.08})`;
+    ctx.beginPath(); ctx.arc(cx, cy, r * R, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = `rgba(167,180,207,${lit ? 0.8 : 0.35})`;
+    ctx.fillText(String(y), cx, cy + r * R - 1);
+  }
+  // Limb: the outer dial with the year scale.
+  const rl = R * 1.07, span = S.ymax - S.ymin, a0 = Math.PI * 0.5 + Math.PI / 6, sweep = Math.PI * 2 - Math.PI / 3;
+  const ang = (y) => a0 + sweep * (y - S.ymin) / span;
+  ctx.strokeStyle = 'rgba(201,168,90,0.35)';
+  ctx.beginPath(); ctx.arc(cx, cy, rl, a0, a0 + sweep); ctx.stroke();
+  ctx.strokeStyle = 'rgba(230,198,122,0.9)'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(cx, cy, rl, ang(S.ymin), ang(S.year)); ctx.stroke();
+  ctx.lineWidth = 0.7;
+  ctx.textBaseline = 'middle';
+  for (let y = Math.ceil(S.ymin / 10) * 10; y <= S.ymax; y += 10) {
+    const a = ang(y), big = y % 50 === 0, len = big ? 9 : 4;
+    ctx.strokeStyle = `rgba(201,168,90,${big ? 0.7 : 0.35})`;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * rl, cy + Math.sin(a) * rl); ctx.lineTo(cx + Math.cos(a) * (rl + len), cy + Math.sin(a) * (rl + len)); ctx.stroke();
+    if (big) {
+      ctx.fillStyle = y <= S.year ? 'rgba(230,198,122,0.9)' : 'rgba(167,180,207,0.6)';
+      const inside = mobile, rr = inside ? rl - 13 : rl + 14, c = Math.cos(a) * (inside ? -1 : 1);
+      ctx.textAlign = c > 0.3 ? 'left' : (c < -0.3 ? 'right' : 'center');
+      ctx.fillText(String(y), cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+    }
+  }
+  // Pointer for the current year.
+  const pa = ang(S.year);
+  ctx.fillStyle = '#f2dc9c';
+  ctx.beginPath(); ctx.arc(cx + Math.cos(pa) * rl, cy + Math.sin(pa) * rl, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(242,220,156,0.35)';
+  ctx.beginPath(); ctx.arc(cx + Math.cos(pa) * rl, cy + Math.sin(pa) * rl, 7, 0, Math.PI * 2); ctx.stroke();
+  // Constellations: lines between the brightest stars of one community, then the label.
+  const nd = S.nodes, placed = [];
+  ctx.font = `${mobile ? 10 : 12.5}px "Cormorant SC", Georgia, serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const cons = S.meta.constellations.slice().sort((a, b) => b.size - a.size);
+  const maxLabels = mobile ? 6 : 12;
+  let labels = 0;
+  for (const c of cons) {
+    let lit = 0;
+    for (const s of c.stars) if (nd.year[s] <= S.year) lit++;
+    const f = lit / c.stars.length;
+    if (f <= 0) continue;
+    const alpha = Math.min(1, Math.max(0, (f - 0.25) / 0.5));
+    ctx.strokeStyle = `rgba(232,215,166,${0.55 * alpha})`; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (const [a, b] of c.lines) {
+      if (nd.year[a] > S.year || nd.year[b] > S.year) continue;
+      const [x1, y1] = toScreen(nd.x[a], nd.y[a]), [x2, y2] = toScreen(nd.x[b], nd.y[b]);
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    }
+    ctx.stroke();
+    if (alpha <= 0.05 || labels >= maxLabels) continue;
+    const [lx, ly] = toScreen(c.x, c.y);
+    const label = c.name.toUpperCase(), tw = ctx.measureText(label).width + 8, th = 16;
+    const box = [lx - tw / 2, ly - th / 2 - 14, tw, th];
+    if (placed.some((p) => box[0] < p[0] + p[2] && box[0] + box[2] > p[0] && box[1] < p[1] + p[3] && box[1] + box[3] > p[1])) continue;
+    placed.push(box); labels++;
+    ctx.fillStyle = `rgba(4,8,22,${0.55 * alpha})`;
+    ctx.fillRect(box[0], box[1], box[2], box[3]);
+    ctx.fillStyle = `rgba(240,226,190,${0.85 * alpha})`;
+    ctx.fillText(label, lx, ly - 14);
+  }
+  // Markers for the hovered star and the selected star.
+  for (const [i, col] of [[S.selected, '#f2dc9c'], [S.hover, '#dfe9ff']]) {
+    if (i < 0 || nd.year[i] > S.year) continue;
+    const [x, y] = toScreen(nd.x[i], nd.y[i]);
+    const r = starSize(nd.indeg[i]) * S.sizeScale + 6;
+    ctx.strokeStyle = col; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + r + 6, y); ctx.moveTo(x - r, y); ctx.lineTo(x - r - 6, y);
+    ctx.moveTo(x, y + r); ctx.lineTo(x, y + r + 6); ctx.moveTo(x, y - r); ctx.lineTo(x, y - r - 6); ctx.stroke();
+  }
+}
+
+/* ---------- sound ---------- */
+let Snd = null;
+function makeSound(ctx, master) {
+  const bus = ctx.createGain(); bus.gain.value = 1;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3400; lp.Q.value = 0.4;
+  bus.connect(lp); lp.connect(master);
+  // Space: a convolver with a generated noise impulse response.
+  const sr = ctx.sampleRate, irLen = Math.floor(sr * 3.2), ir = ctx.createBuffer(2, irLen, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.6) * 0.5;
+  }
+  const conv = ctx.createConvolver(); conv.buffer = ir;
+  const wet = ctx.createGain(); wet.gain.value = 0.38;
+  lp.connect(conv); conv.connect(wet); wet.connect(master);
+  // Drone: detuned sawtooth voices and a soft fifth through a slow low-pass filter.
+  const dFilter = ctx.createBiquadFilter(); dFilter.type = 'lowpass'; dFilter.frequency.value = 220; dFilter.Q.value = 0.9;
+  const dGain = ctx.createGain(); dGain.gain.value = 0;
+  dFilter.connect(dGain); dGain.connect(bus);
+  const voices = [];
+  const mk = (type, ratio, g) => {
+    const o = ctx.createOscillator(); o.type = type; const vg = ctx.createGain(); vg.gain.value = g;
+    o.connect(vg); vg.connect(dFilter); o.start(); voices.push({ o, ratio });
+  };
+  mk('sawtooth', 1.0, 0.11); mk('sawtooth', 1.004, 0.09); mk('sine', 1.5, 0.08); mk('sine', 2.0, 0.045);
+  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.06;
+  const lfoG = ctx.createGain(); lfoG.gain.value = 40; lfo.connect(lfoG); lfoG.connect(dFilter.frequency); lfo.start();
+  dGain.gain.setTargetAtTime(0.85, ctx.currentTime, 2.5);
+  // Karplus-Strong plucks, rendered into buffers once per note.
+  const notes = [];
+  const scale = [0, 2, 4, 7, 9];
+  for (let oct = 0; oct < 3; oct++) for (const st of scale) notes.push(130.81 * Math.pow(2, oct + st / 12));
+  const plucks = notes.map((f) => ksBuffer(ctx, f));
+  let lastPluck = 0;
+  const api = {
+    setCentury(root) { for (const v of voices) v.o.frequency.setTargetAtTime(root * v.ratio, ctx.currentTime, 3.0); },
+    setActivity(a) { dFilter.frequency.setTargetAtTime(170 + 900 * Math.min(1, a), ctx.currentTime, 0.6); },
+    pluck(weight, pan, gain) {
+      const t = ctx.currentTime;
+      if (t - lastPluck < 0.055) return false;
+      lastPluck = t;
+      const k = Math.round((1 - weight) * (notes.length - 1));
+      const src = ctx.createBufferSource(); src.buffer = plucks[k];
+      const g = ctx.createGain(); g.gain.setValueAtTime(gain, t);
+      const p = ctx.createStereoPanner(); p.pan.value = pan;
+      src.connect(g); g.connect(p); p.connect(bus);
+      src.start(t); src.stop(t + plucks[k].duration);
+      src.onended = () => { src.disconnect(); g.disconnect(); p.disconnect(); };
+      return true;
+    },
+    ping(freq, pan) {
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0005, t + 1.6);
+      const p = ctx.createStereoPanner(); p.pan.value = pan;
+      o.connect(g); g.connect(p); p.connect(bus); o.start(t); o.stop(t + 1.7);
+      o.onended = () => { o.disconnect(); g.disconnect(); p.disconnect(); };
+    },
+  };
+  return api;
+}
+function ksBuffer(ctx, freq) {
+  // Karplus-Strong: a short noise burst feeds a delay line of one period with a
+  // low-pass feedback. The result is a plucked string.
+  const sr = ctx.sampleRate, dur = 2.4, N = Math.round(sr / freq), len = Math.floor(sr * dur);
+  const buf = ctx.createBuffer(1, len, sr), out = buf.getChannelData(0);
+  const ring = new Float32Array(N);
+  for (let i = 0; i < N; i++) ring[i] = Math.random() * 2 - 1;
+  const decay = freq < 200 ? 0.996 : (freq < 400 ? 0.993 : 0.989);
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const j = i % N, cur = ring[j];
+    const nxt = 0.5 * (cur + prev) * decay;
+    ring[j] = nxt; prev = cur;
+    const env = i < 400 ? i / 400 : 1;
+    out[i] = cur * env * 0.6;
+  }
+  for (let i = len - 2000; i < len; i++) out[i] *= (len - i) / 2000;
+  return buf;
+}
+function centuryRoot(year) {
+  if (year < 1800) return 55.0;
+  if (year < 1900) return 65.41;
+  if (year < 2000) return 73.42;
+  return 82.41;
+}
+
+/* ---------- time and animation ---------- */
+let last = 0, lastCentury = -1, activity = 0;
+function setYear(y, fromScrub) {
+  S.year = Math.max(S.ymin, Math.min(S.ymax + 0.999, y));
+  if (fromScrub) {
+    // Move the edge pointer with a binary search. No plucks on a scrub.
+    let lo = 0, hi = S.E;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (S.edgeYearF[S.edgeOrder[m]] <= S.year) lo = m + 1; else hi = m; }
+    S.ptr = lo;
+    for (let i = 0; i < S.n; i++) S.ignited[i] = S.nodes.year[i] <= S.year ? 1 : 0;
+  }
+  const sl = $('#slider'), v = Math.floor(S.year);
+  sl.value = v; sl.style.setProperty('--pct', `${100 * (v - S.ymin) / (S.ymax - S.ymin)}%`);
+  $('#year').textContent = v;
+}
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!S.loaded || !S.started) return;
+  const dt = Math.min(0.1, (now - last) / 1000) || 0; last = now;
+  if (S.playing) {
+    if (S.hold > 0) { S.hold -= dt; if (S.hold <= 0) setYear(S.ymin, true); }
+    else {
+      // Few drawn cases exist before 1850. The clock runs three times faster there.
+      const pace = S.year < 1850 ? 3 : (S.year < 1870 ? 1 + 2 * (1870 - S.year) / 20 : 1);
+      setYear(S.year + S.speed * pace * dt, false);
+      if (S.year >= S.ymax + 0.99) S.hold = 5;
+    }
+  }
+  S.rot += 0.0035 * dt;
+  S.driftX = 7 * Math.sin(now * 0.00005); S.driftY = 5 * Math.cos(now * 0.000037);
+  // New citations since the last frame. Pluck a few that land on bright stars.
+  const landed = [];
+  while (S.ptr < S.E && S.edgeYearF[S.edgeOrder[S.ptr]] <= S.year) { landed.push(S.edgeOrder[S.ptr]); S.ptr++; }
+  activity = activity * Math.exp(-dt * 0.8) + landed.length * 0.012;
+  if (Snd) {
+    const root = centuryRoot(S.year), cen = Math.floor(S.year / 100);
+    if (cen !== lastCentury) { Snd.setCentury(root); lastCentury = cen; }
+    Snd.setActivity(activity);
+    if (S.playing && landed.length) {
+      const lm = Math.log10(1 + S.maxIndeg), nd = S.nodes;
+      landed.sort((a, b) => nd.indeg[S.edges[2 * b + 1]] - nd.indeg[S.edges[2 * a + 1]]);
+      let played = 0;
+      for (const e of landed) {
+        const t = S.edges[2 * e + 1], d = nd.indeg[t];
+        if (d < 20) break;
+        const w = Math.log10(1 + d) / lm;
+        const [sx] = toScreen(nd.x[t], nd.y[t]);
+        const pan = Math.max(-0.8, Math.min(0.8, (sx - S.cx) / S.R));
+        if (Snd.pluck(w, pan, 0.05 + 0.1 * w)) played++;
+        if (played >= 3) break;
+      }
+    }
+    // A soft ping when a gold star ignites.
+    if (S.playing) {
+      const nd = S.nodes;
+      for (let i = 0; i < S.n; i++) {
+        if (S.ignited[i] || nd.year[i] > S.year) continue;
+        S.ignited[i] = 1;
+        if (isGold(i) && Math.random() < 0.6) {
+          const [sx] = toScreen(nd.x[i], nd.y[i]);
+          Snd.ping(1046.5 * Math.pow(2, [0, 2, 4, 7, 9][i % 5] / 12), Math.max(-0.7, Math.min(0.7, (sx - S.cx) / S.R)));
+        }
+      }
+    }
+  } else {
+    for (let i = 0; i < S.n; i++) if (!S.ignited[i] && S.nodes.year[i] <= S.year) S.ignited[i] = 1;
+  }
+  group.rotation.z = S.rot;
+  group.scale.set(S.R, S.R, 1);
+  group.position.set(S.cx - window.innerWidth / 2 + S.driftX, window.innerHeight / 2 - S.cy - S.driftY, 0);
+  starMat.uniforms.uYear.value = S.year; lineMat.uniforms.uYear.value = S.year;
+  starMat.uniforms.uHover.value = S.hover; starMat.uniforms.uSelected.value = S.selected;
+  renderer.render(scene, camera);
+  drawOverlay();
+  placeTip();
+}
+
+/* ---------- interaction ---------- */
+let mouse = { x: -1, y: -1, touch: false };
+function showTip(i, x, y) {
+  const tip = $('#tip'), nd = S.nodes;
+  if (i < 0) { tip.style.display = 'none'; return; }
+  const c = nd.comm[i], con = S.meta.constellations.find((k) => k.id === c);
+  tip.innerHTML = `<b>${esc(nd.name[i])}</b><span class="m">${esc(nd.cite[i])} · ${nd.year[i]} · ${nd.indeg[i].toLocaleString()} citations received` +
+    (con ? `<br>in the ${esc(con.name)} constellation` : '') + `</span>`;
+  tip.style.display = 'block';
+  const w = window.innerWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = `${Math.min(w - tw - 8, x + 14)}px`;
+  tip.style.top = `${Math.max(8, y - th - 12)}px`;
+}
+function placeTip() {
+  if (S.hover >= 0) return;
+  if (S.selected >= 0 && S.nodes.year[S.selected] <= S.year) {
+    const [x, y] = toScreen(S.nodes.x[S.selected], S.nodes.y[S.selected]);
+    showTip(S.selected, x, y);
+  } else if (S.selected >= 0) {
+    $('#tip').style.display = 'none';
+  }
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const gl = $('#gl');
+gl.addEventListener('pointermove', (e) => {
+  if (!S.loaded) return;
+  const i = nearest(e.clientX, e.clientY, 14);
+  S.hover = i;
+  if (i >= 0) showTip(i, e.clientX, e.clientY); else if (S.selected < 0) showTip(-1);
+});
+gl.addEventListener('pointerleave', () => { S.hover = -1; if (S.selected < 0) showTip(-1); });
+gl.addEventListener('pointerdown', (e) => {
+  if (!S.loaded) return;
+  const i = nearest(e.clientX, e.clientY, 18);
+  S.selected = i;
+  if (i >= 0) showTip(i, e.clientX, e.clientY); else showTip(-1);
+  $('#results').style.display = 'none';
+});
+$('#play').addEventListener('click', () => {
+  S.playing = !S.playing;
+  $('#play').textContent = S.playing ? 'Pause' : 'Play';
+});
+$('#slider').addEventListener('input', (e) => { S.hold = 0; setYear(+e.target.value, true); });
+$('#speed').addEventListener('change', (e) => { S.speed = +e.target.value; });
+const search = $('#search'), results = $('#results');
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  results.innerHTML = '';
+  if (q.length < 2 || !S.loaded) { results.style.display = 'none'; return; }
+  const nd = S.nodes, hits = [];
+  for (let i = 0; i < S.n && hits.length < 8; i++) {
+    if (nd.name[i].toLowerCase().includes(q) || nd.cite[i].toLowerCase().startsWith(q)) hits.push(i);
+  }
+  hits.sort((a, b) => nd.indeg[b] - nd.indeg[a]);
+  for (const i of hits) {
+    const li = document.createElement('li');
+    li.innerHTML = `${esc(nd.name[i])}<span>${esc(nd.cite[i])} · ${nd.year[i]}</span>`;
+    li.addEventListener('click', () => {
+      S.selected = i;
+      if (S.year < nd.year[i]) { S.hold = 0; setYear(nd.year[i] + 0.5, true); }
+      results.style.display = 'none';
+      search.value = nd.name[i];
+    });
+    results.appendChild(li);
+  }
+  results.style.display = hits.length ? 'block' : 'none';
+});
+search.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const li = results.querySelector('li'); if (li) li.click(); } });
+document.addEventListener('keydown', (e) => {
+  if (e.target === search) return;
+  if (e.key === ' ') { e.preventDefault(); $('#play').click(); }
+});
+if (window.innerWidth < 760) { $('#caption').open = false; $('#legendBox').open = false; }
+
+/* ---------- entry ---------- */
+resize();
+load().catch((e) => { console.warn('data load failed', e); });
+Gallery.mount({
+  slug: 'court-galaxy',
+  title: 'The Citation Galaxy',
+  blurb: 'The citation network of United States Supreme Court opinions as a galaxy that grows year by year. Stars ignite when a case is decided. Citations flash as lines. A drone follows the century and each citation to a bright star plucks a string.',
+  onStart(audioCtx, masterGain) {
+    if (audioCtx && masterGain) {
+      try { Snd = makeSound(audioCtx, masterGain); } catch (e) { console.warn('sound failed', e); Snd = null; }
+    }
+    S.started = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  },
+});
+</script>
+</body>
+</html>
