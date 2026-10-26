@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where Curiosity Goes</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fredoka@5.3.0/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fredoka@5.3.0/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fredoka@5.3.0/700.css">
+<style>
+  :root{
+    --bg:#FFF3B8; --ink:#2B2350; --paper:#FFFDF4;
+    --coral:#FF8A8E; --sky:#6FB3FF; --mustard:#C9A227; --mint:#7FD8BE; --mint-dark:#3FBF9F;
+    --pink:#FFB3C6; --lilac:#D7C8FF; --peach:#FFD1A3;
+    --font:"Fredoka","Nunito","Arial Rounded MT Bold","Helvetica Rounded",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--font)}
+  body{position:relative;width:100%;height:100%}
+  canvas#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+  #top{position:absolute;left:0;right:0;top:0;padding:14px 16px 6px;z-index:5;pointer-events:none}
+  #top h1{margin:0 0 8px;font-size:clamp(22px,3.2vw,34px);font-weight:700;letter-spacing:.3px;line-height:1.05}
+  #top h1 small{display:block;font-size:clamp(12px,1.2vw,15px);font-weight:400;opacity:.85;margin-top:2px}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;pointer-events:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .chips::-webkit-scrollbar{display:none}
+  .chips{mask-image:linear-gradient(90deg,#000 94%,transparent);-webkit-mask-image:linear-gradient(90deg,#000 94%,transparent)}
+  .chip,.btn{font-family:var(--font);font-weight:600;font-size:14px;color:var(--ink);background:var(--paper);
+    border:3px solid var(--ink);border-radius:999px;padding:6px 13px;cursor:pointer;white-space:nowrap;
+    box-shadow:0 4px 0 var(--ink);transition:transform .12s cubic-bezier(.34,1.56,.64,1),box-shadow .12s,background .2s;user-select:none;line-height:1.15}
+  .chip:hover,.btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
+  .chip:active,.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+  .chip.on{background:var(--coral)}
+  .chip b{display:block;font-size:9.5px;font-weight:400;letter-spacing:.6px;text-transform:uppercase;opacity:.7;line-height:1}
+  .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;pointer-events:auto;font-size:13px;min-height:26px}
+  .crumbs span.sep{opacity:.6}
+  .crumb{font-family:var(--font);font-weight:600;font-size:12px;color:var(--ink);background:var(--peach);border:2.5px solid var(--ink);
+    border-radius:999px;padding:3px 10px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+  .crumb.here{background:var(--coral);cursor:default}
+  .crumb:not(.here):hover{transform:translateY(-1px)}
+  #bottom{position:absolute;left:0;right:0;bottom:0;z-index:5;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:0 14px 54px 14px;pointer-events:none}
+  .legend{pointer-events:auto;background:var(--paper);border:3px solid var(--ink);border-radius:18px;padding:10px 12px;font-size:12.5px;line-height:1.35;
+    box-shadow:0 5px 0 var(--ink);max-width:300px}
+  .legend h2{margin:0 0 6px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.7px}
+  .legend .row{display:flex;align-items:center;gap:9px;margin:4px 0}
+  .legend svg{flex:0 0 auto}
+  .legend .short{display:none}
+  @media (max-width:700px){.legend .short{display:inline}}
+  .right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:auto;max-width:min(380px,60vw)}
+  .bubble{position:relative;background:var(--paper);border:3px solid var(--ink);border-radius:22px;padding:12px 15px;font-size:14px;line-height:1.4;box-shadow:0 5px 0 var(--ink)}
+  .bubble:after{content:"";position:absolute;right:28px;bottom:-16px;width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:16px solid var(--ink)}
+  .bubble:before{content:"";position:absolute;right:31px;bottom:-9px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid var(--paper);z-index:1}
+  .bubble b{font-weight:700}
+  .bubble .hear{display:block;margin-top:6px;font-size:12.5px;opacity:.85}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .btn{padding:8px 15px;font-size:14px}
+  .btn.play{background:var(--mint)}
+  .btn.play.on{background:var(--coral)}
+  .btn.back{background:var(--lilac)}
+  .btn.dice{background:var(--pink)}
+  .source{font-size:11.5px;opacity:.85;text-align:right;line-height:1.3}
+  .source a{color:var(--ink);font-weight:600}
+  @media (max-width:700px){
+    #top{padding:10px 10px 4px}
+    #top h1{font-size:19px;margin-bottom:4px}
+    #top h1 small{font-size:11px}
+    .chip{font-size:12px;padding:5px 10px;border-width:2.5px}
+    .chip b{font-size:8.5px}
+    .crumb{font-size:11px;padding:2px 8px}
+    #bottom{flex-direction:column;align-items:stretch;padding:0 8px 50px 8px;gap:6px}
+    #top h1 small{display:none}
+    .legend{max-width:none;font-size:10.5px;line-height:1.2;padding:6px 9px;border-radius:14px;box-shadow:0 3px 0 var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}
+    .legend h2{display:none}
+    .legend .row{margin:0;gap:6px}
+    .legend .row svg{width:34px;height:16px}
+    .legend .long{display:none}
+    .right{max-width:none;align-items:stretch;gap:6px}
+    .bubble{font-size:12px;line-height:1.3;padding:8px 11px;border-radius:16px;box-shadow:0 3px 0 var(--ink)}
+    .bubble .hear{font-size:10.5px;margin-top:2px}
+    .bubble:after{bottom:-13px;border-left-width:9px;border-right-width:9px;border-top-width:13px}
+    .bubble:before{bottom:-7px;border-left-width:6px;border-right-width:6px;border-top-width:10px}
+    .controls{justify-content:space-between}
+    .btn{padding:6px 10px;font-size:12.5px;flex:1 1 auto;text-align:center}
+    .source{text-align:left;font-size:10.5px}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<header id="top">
+  <h1>Where Curiosity Goes<small id="sub">Where Wikipedia readers click next. English Wikipedia clickstream.</small></h1>
+  <div class="chips" id="seeds" aria-label="Start articles"></div>
+  <div class="crumbs" id="crumbs" aria-label="Trail"></div>
+</header>
+
+<div id="bottom">
+  <div class="legend" id="legend">
+    <h2>How to read it</h2>
+    <div class="row"><svg width="46" height="18" viewBox="0 0 46 18"><path d="M3 9 Q 23 2 43 9" stroke="#2B2350" stroke-width="12" fill="none" stroke-linecap="round"/><path d="M3 9 Q 23 2 43 9" stroke="#7FD8BE" stroke-width="7" fill="none" stroke-linecap="round"/></svg><span>Ribbon width = clicks<span class="long"> on that link in the month</span></span></div>
+    <div class="row"><svg width="46" height="18" viewBox="0 0 46 18"><rect x="4" y="5" width="7" height="5" rx="2" fill="#FF8A8E" transform="rotate(20 7 7)"/><rect x="18" y="7" width="7" height="5" rx="2" fill="#6FB3FF" transform="rotate(-30 21 9)"/><rect x="32" y="4" width="7" height="5" rx="2" fill="#C9A227" transform="rotate(50 35 6)"/></svg><span>Confetti rate = share of the clicks<span class="long">. One minute of confetti = the whole month</span></span></div>
+    <div class="row"><svg width="46" height="22" viewBox="0 0 46 22"><circle cx="9" cy="11" r="5" fill="#6FB3FF" stroke="#2B2350" stroke-width="2.5"/><circle cx="31" cy="11" r="9" fill="#6FB3FF" stroke="#2B2350" stroke-width="2.5"/></svg><span>Blob size = <span class="long">clicks that arrived at the article from any link</span><span class="short">all arrivals</span></span></div>
+    <div class="row"><svg width="46" height="22" viewBox="0 0 46 22"><circle cx="10" cy="11" r="8" fill="#FF8A8E" stroke="#2B2350" stroke-width="2.5"/><circle cx="34" cy="11" r="8" fill="#C9A227" stroke="#2B2350" stroke-width="2.5"/></svg><span>Coral = <span class="long">where you are</span><span class="short">here</span>. Mustard = <span class="long">where you came from</span><span class="short">back</span></span></div>
+  </div>
+  <div class="right">
+    <div class="bubble" id="caption">Loading the clickstream…</div>
+    <div class="controls">
+      <button class="btn back" id="back" title="Go back one hop">↩ Back</button>
+      <button class="btn dice" id="dice" title="Jump to a random start">🎲 Random start</button>
+      <button class="btn play" id="play" title="Let a reader wander by the click probabilities">▶ Random walk</button>
+    </div>
+    <div class="source" id="source">Source: Wikimedia Clickstream (enwiki), <span id="month">…</span>, CC0. <a href="README.md">README</a></div>
+  </div>
+</div>
+
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  // ---------- colors and constants ----------
+  const INK = '#2B2350', CORAL = '#FF8A8E', SKY = '#6FB3FF', MUSTARD = '#C9A227', MINT = '#7FD8BE', MINT_D = '#3FBF9F', PAPER = '#FFFDF4';
+  const CONFETTI = ['#FF8A8E', '#6FB3FF', '#C9A227', '#D7C8FF', '#FFD1A3'];
+  const CAP_WALK_SECONDS = 3.4;   // seconds the random walk waits on each article
+  const MONTHS = { '01': 'January', '02': 'February', '03': 'March', '04': 'April', '05': 'May', '06': 'June', '07': 'July', '08': 'August', '09': 'September', '10': 'October', '11': 'November', '12': 'December' };
+
+  const canvas = document.getElementById('c');
+  const ctx2d = canvas.getContext('2d');
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- data ----------
+  let G = null;            // the graph from data/graph.json
+  let monthName = '';
+  let maxIn = 1;           // largest incoming total, for blob size
+
+  // ---------- live state ----------
+  const live = new Map();  // id -> node object on screen
+  let centerId = -1, prevId = -1;
+  let trail = [];          // breadcrumb trail of ids
+  let walking = false, walkClock = 0, leafClock = 0;
+  let hoverId = -1, pointer = { x: -1, y: -1 };
+  let W = 0, H = 0, DPR = 1, area = { x0: 0, y0: 0, x1: 0, y1: 0 };
+  let cx = 0, cy = 0, Rx = 200, Ry = 200, SZ = 1;
+  let running = false, lastT = 0, started = false;
+  let readerCount = 0;     // readers that arrived since the start, summed from the confetti bits
+  const MONTH_SECONDS = 60; // one minute of confetti stands for the whole month of clicks
+
+  // ---------- helpers ----------
+  const title = (id) => G.nodes[id][0].replace(/_/g, ' ');
+  const incoming = (id) => G.nodes[id][1];
+  const kids = (id) => G.edges[id] || null;
+  const outTotal = (id) => G.out[id] || 0;
+  const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function blobRadius(id) { return (11 + 25 * Math.sqrt(incoming(id) / maxIn)) * SZ; }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  // ---------- layout ----------
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    ctx2d.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const top = $('top').getBoundingClientRect().bottom;
+    const bot = $('bottom').getBoundingClientRect().top;
+    area = { x0: 8, y0: top + 4, x1: W - 8, y1: Math.max(top + 120, bot - 4) };
+    const narrow = W < 700;
+    cx = (area.x0 + area.x1) / 2; cy = (area.y0 + area.y1) / 2 + (narrow ? 4 : 10);
+    if (narrow) {
+      Rx = Math.max(80, (area.x1 - area.x0) / 2 - 62);
+      Ry = Math.max(90, (area.y1 - area.y0) / 2 - 52);
+    } else {
+      Rx = Math.max(90, (area.x1 - area.x0) / 2 - 150 - 24);
+      Ry = Math.max(90, (area.y1 - area.y0) / 2 - 60);
+      Rx = Math.min(Rx, Ry * 1.9);
+    }
+    SZ = clamp(Math.min(Rx, Ry) / 240, 0.5, 1.15);
+    layoutTargets();
+  }
+
+  // Each child takes a slot on the ring. Rank 0 sits at the top. The ranks go
+  // clockwise. The previous article takes the slot nearest to the left side.
+  function layoutTargets() {
+    if (centerId < 0) return;
+    const c = live.get(centerId);
+    if (c) { c.tx = cx; c.ty = cy; c.ts = 1; }
+    const children = [...live.values()].filter(n => n.role === 'child').sort((a, b) => a.rank - b.rank);
+    const hasPrev = prevId >= 0 && live.has(prevId);
+    const slots = children.length + (hasPrev ? 1 : 0);
+    if (!slots) return;
+    const angles = [];
+    for (let i = 0; i < slots; i++) angles.push(-Math.PI / 2 + i * 2 * Math.PI / slots);
+    let prevSlot = -1;
+    if (hasPrev) {
+      let best = 1e9;
+      angles.forEach((a, i) => { const d = Math.abs(Math.atan2(Math.sin(a - Math.PI), Math.cos(a - Math.PI))); if (d < best) { best = d; prevSlot = i; } });
+      const p = live.get(prevId);
+      p.angle = children.length ? angles[prevSlot] : Math.PI;  // a leaf keeps the way back on the left
+      p.tx = cx + Rx * Math.cos(p.angle); p.ty = cy + Ry * Math.sin(p.angle); p.ts = 1;
+    }
+    let k = 0;
+    for (let i = 0; i < slots; i++) {
+      if (i === prevSlot) continue;
+      const n = children[k++];
+      n.angle = angles[i];
+      n.tx = cx + Rx * Math.cos(n.angle); n.ty = cy + Ry * Math.sin(n.angle); n.ts = 1;
+    }
+  }
+
+  // ---------- transitions ----------
+  function makeNode(id, x, y) {
+    return { id, x, y, vx: 0, vy: 0, s: 0, vs: 0, tx: x, ty: y, ts: 1, role: 'child', rank: 0, n: 0, share: 0, angle: 0, delay: 0, parts: [], acc: 0, bump: 0, wob: Math.random() * 6.28 };
+  }
+
+  function setCenter(id, opts) {
+    opts = opts || {};
+    const old = live.get(centerId);
+    const origin = (opts.from && live.get(opts.from)) ? { x: live.get(opts.from).x, y: live.get(opts.from).y } : (old ? { x: old.x, y: old.y } : { x: cx, y: cy });
+    centerId = id;
+    prevId = trail.length >= 2 ? trail[trail.length - 2] : -1;
+    for (const n of live.values()) {
+      if (n.id === centerId) { n.role = 'center'; }
+      else if (n.id === prevId) { n.role = 'prev'; n.parts = []; }
+      else { n.role = 'dying'; n.ts = 0; n.parts = []; }
+    }
+    if (!live.has(centerId)) { const n = makeNode(centerId, origin.x, origin.y); n.role = 'center'; live.set(centerId, n); }
+    if (prevId >= 0 && !live.has(prevId)) { const n = makeNode(prevId, cx, cy); n.role = 'prev'; live.set(prevId, n); }
+    const list = kids(centerId) || [];
+    const out = outTotal(centerId) || 1;
+    const c = live.get(centerId);
+    let rank = 0;
+    for (const [kid, n] of list) {
+      if (kid === prevId || kid === centerId) continue;
+      let node = live.get(kid);
+      if (!node) { node = makeNode(kid, c.x, c.y); live.set(kid, node); }
+      node.role = 'child'; node.rank = rank; node.n = n; node.share = n / out; node.delay = 0.06 * rank; node.parts = []; node.acc = Math.random();
+      rank++;
+    }
+    layoutTargets();
+    leafClock = 0; walkClock = 0;
+    renderCrumbs();
+    renderCaption();
+    if (opts.sound !== false) playChord(opts.back ? 'back' : 'go');
+  }
+
+  function go(id) { trail.push(id); setCenter(id, { from: id }); }
+  function back() { if (trail.length < 2) return; trail.pop(); setCenter(trail[trail.length - 1], { back: true }); }
+  function jumpTo(id) { trail = [id]; setCenter(id, {}); renderChips(); }
+  function randomSeed() {
+    const pool = G.seeds.filter(s => s.id !== centerId);
+    jumpTo(pool[Math.floor(Math.random() * pool.length)].id);
+  }
+  function crumbTo(i) { trail = trail.slice(0, i + 1); setCenter(trail[i], { back: true }); }
+
+  // ---------- DOM pieces ----------
+  function renderChips() {
+    const box = $('seeds');
+    box.innerHTML = '';
+    for (const s of G.seeds) {
+      const b = document.createElement('button');
+      b.className = 'chip' + (s.id === trail[0] ? ' on' : '');
+      b.innerHTML = `<b>${esc(s.label)}</b>${esc(title(s.id))}`;
+      b.addEventListener('click', () => jumpTo(s.id));
+      box.appendChild(b);
+    }
+    const on = box.querySelector('.chip.on');
+    if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  function renderCrumbs() {
+    const box = $('crumbs');
+    box.innerHTML = '';
+    trail.forEach((id, i) => {
+      if (i) { const s = document.createElement('span'); s.className = 'sep'; s.textContent = '›'; box.appendChild(s); }
+      const b = document.createElement('button');
+      b.className = 'crumb' + (i === trail.length - 1 ? ' here' : '');
+      b.textContent = title(id);
+      if (i < trail.length - 1) b.addEventListener('click', () => crumbTo(i));
+      box.appendChild(b);
+    });
+    const seedOn = $('seeds').querySelector('.chip.on');
+    if (!seedOn || !G.seeds.some(s => s.id === trail[0])) renderChips();
+    resize();
+  }
+  function renderCaption() {
+    const list = (kids(centerId) || []).filter(([k]) => k !== prevId);
+    const out = outTotal(centerId);
+    const narrow = W < 700;
+    const counter = `<span id="landed">${fmt(Math.round(readerCount))}</span> readers have landed since you entered.`;
+    let see, hear;
+    if (list.length) {
+      const top = list[0];
+      const pct = Math.round(100 * top[1] / out);
+      see = narrow
+        ? `<b>${esc(title(centerId))}</b>: ${fmt(incoming(centerId))} arrivals in ${monthName}. Of the ${fmt(out)} who clicked on, ${pct}% went to <b>${esc(title(top[0]))}</b>. Tap a blob to move there. ${counter}`
+        : `<b>${esc(title(centerId))}</b>: ${fmt(incoming(centerId))} readers arrived here through links in ${monthName}. ` +
+          `When they clicked on, ${fmt(out)} left through a link, and the biggest share (${pct}%) went to <b>${esc(title(top[0]))}</b>. ` +
+          `Click a blob to make it the new center. ${counter}`;
+    } else {
+      see = `<b>${esc(title(centerId))}</b> is the end of this trail. The map holds three hops from each start. ` +
+        (narrow ? '' : `${fmt(incoming(centerId))} readers arrived here through links in ${monthName}. `) + `Go back, or pick a new start.`;
+    }
+    hear = narrow
+      ? `<span class="hear">Sound: a marimba note per landing bit. The top link plays the lowest note. Pan follows the blob.</span>`
+      : `<span class="hear">You hear a marimba note each time a confetti bit lands. The top link plays the lowest note, the others climb a pentatonic scale. Left and right follow the blob.</span>`;
+    $('caption').innerHTML = see + hear;
+    $('back').disabled = trail.length < 2;
+    $('back').style.opacity = trail.length < 2 ? .5 : 1;
+  }
+
+  // ---------- audio: a small marimba ----------
+  let AC = null, bus = null, noteTimes = [];
+  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];   // semitones above the base note, one per rank
+  const BASE = 261.63;                          // C4
+  function makeIR(ac, seconds, decay) {
+    const len = Math.floor(ac.sampleRate * seconds);
+    const buf = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
+  }
+  function setupAudio(ac, master) {
+    AC = ac;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3400; lp.Q.value = 0.4;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
+    const conv = ac.createConvolver(); conv.buffer = makeIR(ac, 2.0, 2.6);
+    const wet = ac.createGain(); wet.gain.value = 0.32;
+    const dry = ac.createGain(); dry.gain.value = 0.7;
+    lp.connect(dry); dry.connect(comp);
+    lp.connect(conv); conv.connect(wet); wet.connect(comp);
+    comp.connect(master);
+    bus = lp;
+  }
+  // One marimba hit: two slightly detuned sine partials, plus a short bright
+  // "tok" two octaves up. Gentle attack, exponential decay.
+  function hit(freq, pan, vel, dur) {
+    if (!AC || !bus) return;
+    const t = AC.currentTime;
+    const p = AC.createStereoPanner(); p.pan.value = clamp(pan, -0.85, 0.85); p.connect(bus);
+    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); g.connect(p);
+    const o1 = AC.createOscillator(); o1.type = 'sine'; o1.frequency.value = freq;
+    const o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 1.004;
+    const g2 = AC.createGain(); g2.gain.value = 0.5; o2.connect(g2); g2.connect(g); o1.connect(g);
+    const o3 = AC.createOscillator(); o3.type = 'triangle'; o3.frequency.value = freq * 4;
+    const g3 = AC.createGain(); g3.gain.setValueAtTime(0.0001, t); g3.gain.linearRampToValueAtTime(vel * 0.25, t + 0.003); g3.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o3.connect(g3); g3.connect(p);
+    o1.start(t); o2.start(t); o3.start(t);
+    o1.stop(t + dur + 0.05); o2.stop(t + dur + 0.05); o3.stop(t + 0.12);
+  }
+  // A note when a confetti bit lands. Limited to 9 notes per second.
+  function playLanding(rank, x) {
+    if (!AC) return;
+    const now = AC.currentTime;
+    noteTimes = noteTimes.filter(t => now - t < 1);
+    if (noteTimes.length >= 9 || (noteTimes.length && now - noteTimes[noteTimes.length - 1] < 0.045)) return;
+    noteTimes.push(now);
+    const f = BASE * Math.pow(2, PENTA[Math.min(rank, PENTA.length - 1)] / 12);
+    hit(f, (x / W - 0.5) * 1.7, 0.22, 0.55 + 0.1 * (7 - Math.min(rank, 7)) / 7);
+  }
+  // A soft low chord on each transition. Going back plays a falling chord.
+  function playChord(kind) {
+    if (!AC) return;
+    const seq = kind === 'back' ? [7, 4, 0] : [0, 4, 7];
+    seq.forEach((semi, i) => setTimeout(() => hit(BASE / 2 * Math.pow(2, semi / 12), (i - 1) * 0.3, 0.16, 1.3), i * 70));
+  }
+
+  // ---------- particles ----------
+  function spawn(node, c) {
+    // The rate is tied to n: the biggest link in the view sends about six
+    // bits per second, the others fewer in proportion. Each bit carries the
+    // readers that this ribbon moves in one bit interval, so that one minute
+    // of confetti equals the whole month of clicks from the center article.
+    const rate = 0.35 + 6 * node.n / maxNView;
+    node.acc += rate * dtGlobal;
+    const small = W < 700;
+    while (node.acc >= 1) {
+      node.acc -= 1;
+      node.parts.push({ t: 0, v: 0.3 + Math.random() * 0.12, off: (Math.random() - 0.5) * 0.9, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 8,
+        col: CONFETTI[Math.floor(Math.random() * CONFETTI.length)], w: (small ? 5 : 7) + Math.random() * 4, readers: node.n / (rate * MONTH_SECONDS) });
+    }
+    if (node.parts.length > 60) node.parts.splice(0, node.parts.length - 60);
+  }
+
+  // Ribbon: a quadratic curve from the center to the child, bent sideways.
+  function ribbonPoints(c, n) {
+    const mx = (c.x + n.x) / 2, my = (c.y + n.y) / 2;
+    const dx = n.x - c.x, dy = n.y - c.y;
+    return { x0: c.x, y0: c.y, qx: mx - dy * 0.22, qy: my + dx * 0.22, x1: n.x, y1: n.y };
+  }
+  function bez(p, t) {
+    const u = 1 - t;
+    return { x: u * u * p.x0 + 2 * u * t * p.qx + t * t * p.x1, y: u * u * p.y0 + 2 * u * t * p.qy + t * t * p.y1 };
+  }
+
+  // ---------- drawing ----------
+  function blob(x, y, r, fill, time, wob, strokeW) {
+    ctx2d.beginPath();
+    const N = 28;
+    for (let i = 0; i <= N; i++) {
+      const a = i / N * Math.PI * 2;
+      const rr = r * (1 + 0.055 * Math.sin(3 * a + time * 1.7 + wob) + 0.04 * Math.sin(5 * a - time * 1.1 + wob * 2));
+      const px = x + rr * Math.cos(a), py = y + rr * Math.sin(a);
+      if (i) ctx2d.lineTo(px, py); else ctx2d.moveTo(px, py);
+    }
+    ctx2d.closePath();
+    ctx2d.fillStyle = fill; ctx2d.fill();
+    ctx2d.lineWidth = strokeW; ctx2d.strokeStyle = INK; ctx2d.lineJoin = 'round'; ctx2d.stroke();
+    // candy highlight
+    ctx2d.beginPath(); ctx2d.ellipse(x - r * 0.35, y - r * 0.38, r * 0.28, r * 0.17, -0.6, 0, 6.29);
+    ctx2d.fillStyle = 'rgba(255,255,255,0.55)'; ctx2d.fill();
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx2d.beginPath(); ctx2d.moveTo(x + r, y); ctx2d.arcTo(x + w, y, x + w, y + h, r); ctx2d.arcTo(x + w, y + h, x, y + h, r); ctx2d.arcTo(x, y + h, x, y, r); ctx2d.arcTo(x, y, x + w, y, r); ctx2d.closePath();
+  }
+  function fitText(s, maxW) {
+    if (ctx2d.measureText(s).width <= maxW) return s;
+    let lo = 0, hi = s.length;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx2d.measureText(s.slice(0, mid) + '…').width <= maxW) lo = mid; else hi = mid - 1; }
+    return s.slice(0, Math.max(1, lo)).trimEnd() + '…';
+  }
+
+  // Speech bubbles for the labels. Each bubble sits outside the ring, then
+  // the bubbles push each other apart so that they do not overlap.
+  function buildLabels(nodes, big) {
+    const narrow = W < 700;
+    const out = [];
+    const maxW = narrow ? 118 : 168;
+    for (const n of nodes) {
+      const isC = n.role === 'center';
+      const f1 = isC ? (narrow ? 15 : 20) : (narrow ? 12 : 14.5);
+      const f2 = isC ? (narrow ? 10.5 : 12.5) : (narrow ? 9.5 : 11);
+      ctx2d.font = `${isC ? 700 : 600} ${f1}px Fredoka, Nunito, system-ui, sans-serif`;
+      const t1 = fitText(title(n.id), isC ? maxW * (narrow ? 2.1 : 1.5) : maxW);
+      const w1 = ctx2d.measureText(t1).width;
+      ctx2d.font = `400 ${f2}px Fredoka, Nunito, system-ui, sans-serif`;
+      let t2;
+      if (isC) t2 = kids(n.id) ? `${fmt(incoming(n.id))} arrivals · ${fmt(outTotal(n.id))} click on` : `${fmt(incoming(n.id))} arrivals · trail ends here`;
+      else if (n.role === 'prev') t2 = '↩ back here';
+      else t2 = `${fmt(n.n)} clicks · ${Math.round(n.share * 100)}%`;
+      const w2 = ctx2d.measureText(t2).width;
+      const pad = isC ? 14 : 10;
+      const bw = Math.max(w1, w2) + pad * 2, bh = f1 + f2 + pad * 1.5;
+      const r = blobRadius(n.id) * (isC ? 1.9 : 1) * n.s;
+      let bx, by;
+      if (isC) { bx = n.x - bw / 2; by = n.y - r - 16 - bh; }
+      else if (narrow) {
+        // On a phone the bubble sits above or below the blob, never beside it.
+        bx = n.x - bw / 2;
+        by = Math.sin(n.angle) >= -0.1 ? n.y + r + 7 : n.y - r - 7 - bh;
+      } else {
+        const dx = Math.cos(n.angle), dy = Math.sin(n.angle);
+        const ax = n.x + dx * (r + 10), ay = n.y + dy * (r + 10);
+        bx = ax + dx * (bw / 2) * Math.abs(dx) + dx * (bh / 2) * (1 - Math.abs(dx)) - bw / 2;
+        by = ay + dy * (bh / 2) * Math.abs(dy) + dy * (bw / 2) * 0.15 * (1 - Math.abs(dy)) - bh / 2;
+      }
+      out.push({ n, t1, t2, f1, f2, pad, bw, bh, x: bx, y: by, s: n.s, isC });
+    }
+    for (let it = 0; it < 6; it++) {
+      for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+        const a = out[i], b = out[j];
+        const ox = Math.min(a.x + a.bw, b.x + b.bw) - Math.max(a.x, b.x), oy = Math.min(a.y + a.bh, b.y + b.bh) - Math.max(a.y, b.y);
+        if (ox > 0 && oy > 0) {
+          if (a.isC || b.isC) { const m = a.isC ? b : a; m.y += (m.y + m.bh / 2 < cy ? -oy : oy); continue; }
+          const dir = (a.y + a.bh / 2 <= b.y + b.bh / 2) ? 1 : -1;
+          a.y -= dir * oy / 2 + 1; b.y += dir * oy / 2 + 1;
+        }
+      }
+      for (const l of out) { l.x = clamp(l.x, 4, W - l.bw - 4); l.y = clamp(l.y, area.y0 - 2, area.y1 - l.bh); }
+    }
+    return out;
+  }
+  function drawLabel(l, t) {
+    const n = l.n, s = clamp(l.s, 0, 1);
+    if (s < 0.05) return;
+    const cxl = l.x + l.bw / 2, cyl = l.y + l.bh / 2;
+    ctx2d.save();
+    ctx2d.translate(cxl, cyl); ctx2d.scale(s, s); ctx2d.translate(-cxl, -cyl);
+    // tail: a small triangle from the bubble toward the blob
+    const r = blobRadius(n.id) * (l.isC ? 1.9 : 1) * n.s;
+    const dx = n.x - cxl, dy = n.y - cyl, L = Math.hypot(dx, dy) || 1;
+    const tipx = n.x - dx / L * (r + 2), tipy = n.y - dy / L * (r + 2);
+    const ex = -dy / L * 7, ey = dx / L * 7;
+    ctx2d.fillStyle = INK; ctx2d.beginPath(); ctx2d.moveTo(cxl + ex, cyl + ey); ctx2d.lineTo(tipx, tipy); ctx2d.lineTo(cxl - ex, cyl - ey); ctx2d.closePath(); ctx2d.fill();
+    const hot = hoverId === n.id && n.role !== 'center';
+    roundRect(l.x, l.y, l.bw, l.bh, Math.min(16, l.bh / 2));
+    ctx2d.fillStyle = hot ? '#FFF0C2' : PAPER; ctx2d.fill();
+    ctx2d.lineWidth = l.isC ? 3.5 : 2.5; ctx2d.strokeStyle = INK; ctx2d.stroke();
+    ctx2d.fillStyle = INK; ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'alphabetic';
+    ctx2d.font = `${l.isC ? 700 : 600} ${l.f1}px Fredoka, Nunito, system-ui, sans-serif`;
+    ctx2d.fillText(l.t1, cxl, l.y + l.pad * 0.75 + l.f1 * 0.8);
+    ctx2d.font = `400 ${l.f2}px Fredoka, Nunito, system-ui, sans-serif`;
+    ctx2d.globalAlpha = 0.85;
+    ctx2d.fillText(l.t2, cxl, l.y + l.pad * 0.75 + l.f1 + l.f2 * 0.95);
+    ctx2d.restore();
+    l.hit = { x: l.x, y: l.y, w: l.bw, h: l.bh };
+  }
+
+  let dtGlobal = 0, timeNow = 0, labels = [], maxNView = 1, captionClock = 0;
+  function frame(ts) {
+    if (!running) return;
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.034, (ts - lastT) / 1000 || 0.016); lastT = ts; dtGlobal = dt; timeNow += dt;
+    const c = live.get(centerId);
+    // springs
+    const K = 110, D = 2 * Math.sqrt(K) * 0.5;
+    const KS = 150, DS = 2 * Math.sqrt(KS) * 0.42;
+    for (const n of [...live.values()]) {
+      if (n.delay > 0) { n.delay -= dt; }
+      else {
+        const ax = K * (n.tx - n.x) - D * n.vx, ay = K * (n.ty - n.y) - D * n.vy;
+        n.vx += ax * dt; n.vy += ay * dt; n.x += n.vx * dt; n.y += n.vy * dt;
+        const target = n.role === 'dying' ? 0 : n.ts * (hoverId === n.id && n.role !== 'center' ? 1.12 : 1) + n.bump;
+        const as = KS * (target - n.s) - DS * n.vs;
+        n.vs += as * dt; n.s += n.vs * dt;
+        n.bump *= Math.exp(-dt * 7);
+      }
+      if (n.role === 'dying' && n.s < 0.02 && Math.abs(n.vs) < 0.2) live.delete(n.id);
+    }
+    // particles
+    const children = [...live.values()].filter(n => n.role === 'child');
+    maxNView = children.length ? Math.max(...children.map(n => n.n)) : 1;
+    if (c) for (const n of children) {
+      if (n.delay <= 0 && n.s > 0.6) spawn(n, c);
+      const p = ribbonPoints(c, n);
+      for (let i = n.parts.length - 1; i >= 0; i--) {
+        const q = n.parts[i];
+        q.t += q.v * dt * (0.9 + 0.5 * (1 - n.share)); q.rot += q.spin * dt;
+        if (q.t >= 1) {
+          n.parts.splice(i, 1); n.bump = Math.min(0.35, n.bump + 0.12); readerCount += q.readers;
+          const e = bez(p, 1); playLanding(n.rank, e.x);
+        }
+      }
+    }
+    // random walk
+    if (walking && c) {
+      const list = (kids(centerId) || []).filter(([k]) => k !== prevId);
+      if (list.length) {
+        walkClock += dt;
+        if (walkClock > CAP_WALK_SECONDS) {
+          walkClock = 0;
+          const total = list.reduce((s, e) => s + e[1], 0);
+          let r = Math.random() * total, pick = list[list.length - 1][0];
+          for (const [k, n] of list) { r -= n; if (r <= 0) { pick = k; break; } }
+          go(pick);
+        }
+      } else {
+        leafClock += dt;
+        if (leafClock > 1.6) { leafClock = 0; randomSeed(); }
+      }
+    }
+    captionClock += dt;
+    if (captionClock > 0.5) { captionClock = 0; const el = $('landed'); if (el) el.textContent = fmt(Math.round(readerCount)); }
+    draw(c, children);
+  }
+
+  function draw(c, children) {
+    ctx2d.clearRect(0, 0, W, H);
+    // soft background dots
+    ctx2d.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let y = 20; y < H; y += 44) for (let x = 20 + ((y / 44) % 2) * 22; x < W; x += 44) { ctx2d.beginPath(); ctx2d.arc(x, y, 2.2, 0, 6.29); ctx2d.fill(); }
+    if (!c) return;
+    const maxN = children.length ? Math.max(...children.map(n => n.n)) : 1;
+    // ribbons (ink outline first, then the mint ribbon on top)
+    const ribbons = children.map(n => ({ n, p: ribbonPoints(c, n), w: (5 + 30 * Math.sqrt(n.n / maxN)) * SZ * clamp(n.s, 0, 1) }));
+    ctx2d.lineCap = 'round'; ctx2d.lineJoin = 'round';
+    for (const pass of [0, 1]) for (const r of ribbons) {
+      if (r.w <= 0.1) continue;
+      ctx2d.beginPath(); ctx2d.moveTo(r.p.x0, r.p.y0); ctx2d.quadraticCurveTo(r.p.qx, r.p.qy, r.p.x1, r.p.y1);
+      if (pass === 0) { ctx2d.lineWidth = r.w + 5; ctx2d.strokeStyle = INK; }
+      else { ctx2d.lineWidth = r.w; ctx2d.strokeStyle = hoverId === r.n.id ? MINT_D : MINT; }
+      ctx2d.stroke();
+    }
+    // a thin light stripe gives the ribbon a candy look
+    for (const r of ribbons) {
+      if (r.w < 9) continue;
+      ctx2d.beginPath(); ctx2d.moveTo(r.p.x0, r.p.y0); ctx2d.quadraticCurveTo(r.p.qx, r.p.qy, r.p.x1, r.p.y1);
+      ctx2d.lineWidth = r.w * 0.22; ctx2d.strokeStyle = 'rgba(255,255,255,0.45)'; ctx2d.stroke();
+    }
+    // confetti
+    for (const r of ribbons) {
+      const nx = -(r.p.y1 - r.p.y0), ny = (r.p.x1 - r.p.x0), L = Math.hypot(nx, ny) || 1;
+      for (const q of r.n.parts) {
+        const b = bez(r.p, q.t);
+        const off = q.off * r.w * 0.38;
+        const x = b.x + nx / L * off, y = b.y + ny / L * off;
+        ctx2d.save(); ctx2d.translate(x, y); ctx2d.rotate(q.rot);
+        roundRect(-q.w / 2, -q.w * 0.33, q.w, q.w * 0.66, 2);
+        ctx2d.fillStyle = q.col; ctx2d.fill(); ctx2d.lineWidth = 1.2; ctx2d.strokeStyle = INK; ctx2d.stroke();
+        ctx2d.restore();
+      }
+    }
+    // blobs: previous and children, then the center on top
+    const order = [...live.values()].filter(n => n.role !== 'center').concat(c);
+    for (const n of order) {
+      const s = Math.max(0, n.s);
+      if (s < 0.01) continue;
+      const isC = n.role === 'center';
+      const r = blobRadius(n.id) * (isC ? 1.9 : 1) * s;
+      const fill = isC ? CORAL : n.role === 'prev' ? MUSTARD : SKY;
+      blob(n.x, n.y, r, fill, timeNow, n.wob, (isC ? 5 : 3.5) * clamp(s, 0.4, 1));
+    }
+    // labels
+    labels = buildLabels(order.filter(n => n.role !== 'dying' && n.s > 0.05));
+    for (const l of labels) drawLabel(l, timeNow);
+  }
+
+  // ---------- pointer ----------
+  function hitTest(x, y) {
+    for (const n of live.values()) {
+      if (n.role === 'center' || n.role === 'dying') continue;
+      const r = blobRadius(n.id) * n.s + 10;
+      if (Math.hypot(n.x - x, n.y - y) <= r) return n.id;
+    }
+    for (const l of labels) {
+      if (l.isC || !l.hit) continue;
+      if (x >= l.hit.x && x <= l.hit.x + l.hit.w && y >= l.hit.y && y <= l.hit.y + l.hit.h) return l.n.id;
+    }
+    return -1;
+  }
+  canvas.addEventListener('pointermove', (e) => {
+    pointer.x = e.clientX; pointer.y = e.clientY;
+    hoverId = G ? hitTest(e.clientX, e.clientY) : -1;
+    canvas.style.cursor = hoverId >= 0 ? 'pointer' : 'default';
+  });
+  canvas.addEventListener('pointerleave', () => { hoverId = -1; });
+  canvas.addEventListener('click', (e) => {
+    if (!G || !started) return;
+    const id = hitTest(e.clientX, e.clientY);
+    if (id < 0) return;
+    if (id === prevId) back(); else go(id);
+  });
+  $('back').addEventListener('click', back);
+  $('dice').addEventListener('click', () => { if (G) randomSeed(); });
+  $('play').addEventListener('click', () => {
+    walking = !walking; walkClock = 0;
+    $('play').textContent = walking ? '❚❚ Pause walk' : '▶ Random walk';
+    $('play').classList.toggle('on', walking);
+  });
+  window.addEventListener('resize', resize);
+  document.fonts && document.fonts.ready.then(() => resize());
+
+  // ---------- boot ----------
+  fetch('data/graph.json').then(r => r.json()).then(g => {
+    G = g;
+    maxIn = Math.max(...g.nodes.map(n => n[1]));
+    const [y, m] = g.month.split('-');
+    monthName = `${MONTHS[m]} ${y}`;
+    $('month').textContent = monthName;
+    $('sub').textContent = `Where English Wikipedia readers clicked next in ${monthName}. Pick a start, then follow the ribbons.`;
+    renderChips();
+    $('caption').textContent = 'Press "Enter with sound" to begin.';
+    resize();
+    if (started) begin();
+  }).catch(err => { $('caption').textContent = 'The data file did not load: ' + err; });
+
+  function begin() {
+    if (running || !G) return;
+    running = true;
+    trail = [G.seeds[0].id];
+    setCenter(trail[0], { sound: false });
+    renderChips();
+    lastT = performance.now();
+    requestAnimationFrame(frame);
+    walking = true;
+    $('play').textContent = '❚❚ Pause walk';
+    $('play').classList.add('on');
+  }
+
+  Gallery.mount({
+    slug: 'wiki-attention',
+    title: 'Where Curiosity Goes',
+    blurb: 'Readers hop from one Wikipedia article to the next. Ribbons show where they clicked, confetti rides along at the rate of the clicks, and a marimba plays a note each time a reader lands.',
+    onStart(audioCtx, masterGain) {
+      started = true;
+      if (audioCtx && masterGain) setupAudio(audioCtx, masterGain);
+      if (G) begin();
+    }
+  });
+})();
+</script>
+</body>
+</html>
