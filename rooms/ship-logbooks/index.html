@@ -720,7 +720,7 @@
     fetch('data/cells.bin').then(r => r.arrayBuffer()).then(b => new Uint32Array(b)),
     fetch('data/voyages.json').then(r => r.json()),
     fetch('data/routes.bin').then(r => r.arrayBuffer()).then(b => new Int16Array(b)),
-    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json').then(r => r.json()).catch(() => null),
+    fetch('data/land-110m.json').then(r => r.json()).catch(() => null),
   ]).then(([periods, cells, voyages, routes, world]) => {
     S.periods = periods.periods; S.cells = cells; S.voyages = voyages; S.routes = routes;
     S.land = world ? topojson.feature(world, world.objects.land) : null;

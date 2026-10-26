@@ -717,7 +717,7 @@
   // ------------------------------------------------------------ boot
   Promise.all([
     fetch('data/grid.json').then(r => r.json()),
-    fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json())
+    fetch('data/states-10m.json').then(r => r.json())
   ]).then(([g, topo]) => {
     data = g;
     window.__topo = topo;
