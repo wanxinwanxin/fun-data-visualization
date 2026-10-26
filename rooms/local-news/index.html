@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What the County Worried About</title>
+<meta name="description" content="Front-page topics of US newspapers by state and decade, 1800 to 1963, from Chronicling America, drawn as a halftone map.">
+<style>
+  /* Fonts come from the fontsource packages on jsdelivr. The fallbacks are system fonts. */
+  @font-face { font-family: "Anton"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.5/files/anton-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Special Elite"; font-style: normal; font-weight: 400; font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/@fontsource/special-elite@5.2.5/files/special-elite-latin-400-normal.woff2") format("woff2"); }
+
+  :root {
+    --paper: #f1ecdf;
+    --paper-2: #e6dfcd;
+    --ink: #1a1a1a;
+    --ink-2: #4a4640;
+    --ink-3: #8a857b;
+    --red: #b8151b;
+    --head: "Anton", Impact, "Haettenschweiler", "Arial Narrow Bold", "Arial Narrow", sans-serif;
+    --mono: "Special Elite", "Courier New", Courier, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    /* a faint halftone dot screen on the paper */
+    background-image: radial-gradient(circle at 1.5px 1.5px, rgba(26,26,26,.075) 0.8px, transparent 1.2px);
+    background-size: 5px 5px;
+  }
+  a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--red); text-underline-offset: 2px; }
+
+  .page { max-width: 1400px; margin: 0 auto; padding: 14px 16px 90px; }
+
+  /* Masthead */
+  .mast { border-top: 4px solid var(--ink); border-bottom: 1px solid var(--ink); position: relative; }
+  .mast .rule { border-top: 1px solid var(--ink); margin-top: 2px; }
+  .ears { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .ears .red { color: var(--red); }
+  h1.title {
+    font-family: var(--head); font-weight: 400; text-transform: uppercase; letter-spacing: .02em;
+    font-size: clamp(30px, 6.6vw, 84px); line-height: .96; margin: 4px 0 6px; text-align: center; min-height: 1em;
+  }
+  h1.title .caret { display: inline-block; width: .08em; height: .85em; background: var(--red); vertical-align: -0.08em; margin-left: .04em; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .dateline { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; border-top: 1px solid var(--ink); border-bottom: 3px double var(--ink); padding: 5px 0; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+  .dateline .d-big { font-family: var(--head); font-size: 22px; letter-spacing: .04em; color: var(--red); line-height: 1; }
+  .dateline .d-left, .dateline .d-right { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Body grid */
+  .sheet { display: grid; grid-template-columns: 190px minmax(0, 1fr) 250px; gap: 0 18px; margin-top: 10px; }
+  .col { min-width: 0; }
+  .col-left { border-right: 1px solid var(--ink); padding-right: 14px; }
+  .col-right { border-left: 1px solid var(--ink); padding-left: 14px; }
+  .kicker { font-family: var(--head); font-size: 15px; letter-spacing: .14em; text-transform: uppercase; border-bottom: 1px solid var(--ink); padding-bottom: 3px; margin: 0 0 8px; }
+  .kicker .red { color: var(--red); }
+
+  /* Topic column: a stack of headlines */
+  .topics { list-style: none; margin: 0; padding: 0; }
+  .topics li { border-bottom: 1px dotted var(--ink-3); }
+  .topics button {
+    all: unset; display: block; width: 100%; cursor: pointer; padding: 5px 6px 5px 10px; position: relative;
+  }
+  .topics button:hover { background: rgba(26,26,26,.05); }
+  .topics button:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+  .topics .hl { font-family: var(--head); font-size: 21px; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+  .topics .deck { font-size: 11px; color: var(--ink-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .topics li.on button::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; background: var(--red); }
+  .topics li.on .deck { color: var(--ink); }
+
+  /* Map */
+  .mapwrap { position: relative; width: 100%; }
+  canvas.map { display: block; width: 100%; height: auto; }
+  .tip {
+    position: absolute; pointer-events: none; display: none; z-index: 5;
+    background: var(--paper); border: 1px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+    padding: 7px 10px; max-width: 230px; font-size: 12px; line-height: 1.35;
+  }
+  .tip .t-state { font-family: var(--head); font-size: 18px; letter-spacing: .03em; text-transform: uppercase; line-height: 1; }
+  .tip .t-share { font-size: 13px; }
+  .tip .t-top { color: var(--ink-2); margin-top: 3px; }
+  .tip .red { color: var(--red); }
+
+  /* Modes and transport */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; justify-content: space-between; margin: 6px 0 2px; }
+  .modes { display: flex; border: 1px solid var(--ink); }
+  .modes button, .press {
+    all: unset; cursor: pointer; font-family: var(--head); font-size: 14px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 7px 12px; line-height: 1;
+  }
+  .modes button + button { border-left: 1px solid var(--ink); }
+  .modes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .modes button:focus-visible, .press:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  .press { border: 1px solid var(--ink); background: var(--red); color: #fff; box-shadow: 3px 3px 0 var(--ink); }
+  .press:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+  /* Decade dial */
+  .dial { position: relative; margin: 10px 0 0; padding: 22px 0 18px; user-select: none; }
+  .dial .track { position: relative; height: 34px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .dial .tick { position: absolute; top: 0; width: 1px; height: 12px; background: var(--ink); transform: translateX(-.5px); }
+  .dial .tick.major { height: 22px; }
+  .dial .lab { position: absolute; top: 36px; transform: translateX(-50%); font-size: 11px; letter-spacing: .03em; white-space: nowrap; }
+  .dial .needle { position: absolute; top: -8px; width: 3px; height: 50px; background: var(--red); transform: translateX(-1.5px); transition: left .18s steps(3); }
+  .dial .needle::before { content: ""; position: absolute; left: -6px; top: -8px; border: 7.5px solid transparent; border-top: 10px solid var(--red); border-bottom: 0; }
+  .dial input[type=range] { position: absolute; left: 0; right: 0; top: 14px; width: 100%; height: 50px; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
+  .dial .readout { position: absolute; right: 0; top: -2px; font-family: var(--head); font-size: 18px; letter-spacing: .06em; color: var(--red); }
+
+  /* Small multiples strip */
+  .strip-wrap { margin-top: 8px; }
+  .strip-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  canvas.strip { display: block; height: auto; cursor: pointer; }
+
+  /* Right column */
+  .legend { font-size: 12px; }
+  .legend canvas { display: block; width: 100%; height: auto; }
+  .legend .row { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .03em; }
+  .numbers { list-style: none; margin: 0 0 10px; padding: 0; font-size: 12px; }
+  .numbers li { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--ink-3); padding: 2px 0; gap: 8px; }
+  .numbers li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .numbers li span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .numbers li.hl span:last-child { color: var(--red); }
+  .caption { font-size: 12.5px; line-height: 1.5; margin: 0 0 10px; }
+  .caption p { margin: 0 0 6px; }
+  .caption .drop { font-family: var(--head); font-size: 34px; float: left; line-height: .8; margin: 4px 6px 0 0; }
+  .source { font-size: 11px; color: var(--ink-2); line-height: 1.45; border-top: 1px solid var(--ink); padding-top: 6px; }
+  .late { font-size: 12px; margin: 0 0 10px; }
+  .late dt { display: inline; font-family: var(--head); letter-spacing: .04em; }
+  .late dd { display: inline; margin: 0; }
+  .late .item { display: inline; }
+  .late .item::after { content: " / "; color: var(--ink-3); }
+  .late .item:last-child::after { content: ""; }
+
+  /* Phone layout */
+  @media (max-width: 899px) {
+    .page { padding: 10px 16px 90px; }
+    .sheet { grid-template-columns: 1fr; gap: 12px; }
+    .col-left { border-right: 0; padding-right: 0; border-top: 1px solid var(--ink); padding-top: 8px; order: 3; }
+    .col-mid { order: 1; }
+    .col-right { border-left: 0; padding-left: 0; border-top: 1px solid var(--ink); padding-top: 8px; order: 2; }
+    .topics { columns: 2; column-gap: 14px; }
+    .topics li { break-inside: avoid; }
+    .topics .hl { font-size: 18px; }
+    .dateline { font-size: 10px; }
+    .dateline .d-big { font-size: 18px; }
+    .dial .lab.minor { display: none; }
+    .ears { font-size: 10px; }
+    .ears .mid { display: none; }
+    .dateline .d-right { display: none; }
+    .dateline .d-left { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="mast">
+    <div class="ears">
+      <span>Vol. XIII, No. 5 <span class="red">&#9632;</span> Thirteen Rooms</span>
+      <span class="mid">All the news that the OCR could read</span>
+      <span class="red">Price two cents</span>
+    </div>
+    <div class="rule"></div>
+    <h1 class="title" id="title"><span id="title-text"></span><span class="caret"></span></h1>
+    <div class="dateline">
+      <span class="d-left" id="dl-left">Chronicling America</span>
+      <span class="d-big" id="dl-decade">1800s</span>
+      <span class="d-right" id="dl-right">Share of pages that print the word</span>
+    </div>
+  </header>
+
+  <div class="sheet">
+    <aside class="col col-left">
+      <h2 class="kicker">Today's <span class="red">topics</span></h2>
+      <ul class="topics" id="topics"></ul>
+    </aside>
+
+    <main class="col col-mid">
+      <div class="controls">
+        <div class="modes" role="group" aria-label="View mode">
+          <button type="button" id="mode-dots" aria-pressed="true">Halftone map</button>
+          <button type="button" id="mode-head" aria-pressed="false">Headlines</button>
+        </div>
+        <button type="button" class="press" id="play">Stop the press</button>
+      </div>
+      <div class="mapwrap">
+        <canvas class="map" id="map" aria-label="Halftone map of the United States"></canvas>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="dial" id="dial">
+        <div class="readout" id="readout">1800s</div>
+        <div class="track" id="track"></div>
+        <div class="needle" id="needle"></div>
+        <input type="range" id="scrub" min="0" max="16" step="1" value="0" aria-label="Decade">
+      </div>
+      <div class="strip-wrap">
+        <h2 class="kicker">Every decade, <span class="red" id="strip-topic">war</span></h2>
+        <div class="strip-scroll"><canvas class="strip" id="strip"></canvas></div>
+      </div>
+    </main>
+
+    <aside class="col col-right">
+      <h2 class="kicker">Key</h2>
+      <div class="legend" id="legend">
+        <canvas id="legend-canvas"></canvas>
+        <div class="row"><span>0</span><span id="legend-max">share of pages</span></div>
+        <div id="legend-note" style="margin-top:4px;font-size:11px;color:var(--ink-2)"></div>
+      </div>
+      <h2 class="kicker" style="margin-top:12px">By the <span class="red">numbers</span></h2>
+      <ul class="numbers" id="numbers"></ul>
+      <div id="late-wrap" style="display:none">
+        <h2 class="kicker">Late <span class="red">dispatches</span></h2>
+        <dl class="late" id="late"></dl>
+      </div>
+      <h2 class="kicker">What you <span class="red">see</span></h2>
+      <div class="caption" id="caption">
+        <p><span class="drop">E</span>ach state is a halftone. The dots grow with the share of newspaper pages in that state and decade whose OCR text contains the chosen word. The dial steps through 17 decades. In the headline mode, each state types the word that stands out most against its all-time national share.</p>
+        <p>You hear a typewriter key for each letter, panned to where the state sits. A press rumble gets louder and brighter as the national share rises. A page turns at every decade.</p>
+      </div>
+      <div class="source">
+        Source: Library of Congress, <a href="https://www.loc.gov/collections/chronicling-america/" target="_blank" rel="noopener">Chronicling America</a>, page counts from the loc.gov JSON API. Public domain newspapers, 1800 to 1963. <a href="README.md">README</a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const PAPER = '#f1ecdf', INK = '#1a1a1a', INK3 = '#8a857b', RED = '#b8151b';
+  const TITLE = 'What the County Worried About';
+  const DECADE_MS = 3600;          // time-lapse step
+  const FILL_MS = 900;             // halftone fill-in duration
+  const SPACING = 7;               // dot grid spacing in CSS pixels
+
+  // ---------- state ----------
+  const S = {
+    data: null, topo: null, land: null, mesh: null, states: [],
+    topic: 'war', decade: 0, mode: 'dots', playing: true,
+    fillStart: 0, lastStep: 0, hover: -1,
+    geo: [], dots: [], dotsByState: [], centroids: [], boxes: [],
+    typed: [], typeStart: 0,
+    w: 0, h: 0, dpr: 1, path: null, proj: null,
+    audio: null,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const map = $('map'), ctx = map.getContext('2d');
+  const strip = $('strip'), sctx = strip.getContext('2d');
+  const tip = $('tip');
+
+  // ---------- data ----------
+  Promise.all([
+    fetch('data/topics.json').then(r => r.json()),
+    fetch('data/states.json').then(r => r.json()),
+  ]).then(([data, topo]) => {
+    S.data = data; S.topo = topo;
+    S.land = topojson.feature(topo, topo.objects.states);
+    S.mesh = topojson.mesh(topo, topo.objects.states, (a, b) => a !== b);
+    S.geo = S.land.features;
+    readHash();
+    buildTopics();
+    buildDial();
+    layout();
+    window.addEventListener('resize', debounce(layout, 150));
+    Gallery.mount({
+      slug: 'local-news',
+      title: TITLE,
+      blurb: 'A halftone map of what each state printed, decade by decade, 1800 to 1963. The sound is a typewriter and a press: keys for letters, a rumble that follows the national share.',
+      onStart(audioCtx, master) {
+        S.audio = makeAudio(audioCtx, master);
+        typeTitle();
+        setDecade(S.decade, true);
+        S.lastStep = performance.now();
+        requestAnimationFrame(frame);
+      },
+    });
+  }).catch(err => { console.error(err); });
+
+  // The hash sets the first view, for example #topic=cholera&decade=5&mode=head
+  function readHash() {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const t = h.get('topic'); if (t && S.data.topics.some(x => x.id === t)) S.topic = t;
+    const d = parseInt(h.get('decade'), 10); if (!isNaN(d) && d >= 0 && d < S.data.decades.length) S.decade = d;
+    const m = h.get('mode'); if (m === 'head' || m === 'dots') S.mode = m;
+    if (h.get('play') === '0') S.playing = false;
+    $('strip-topic').textContent = S.topic;
+    $('mode-dots').setAttribute('aria-pressed', S.mode === 'dots');
+    $('mode-head').setAttribute('aria-pressed', S.mode === 'head');
+    updatePlay();
+  }
+
+  // ---------- helpers ----------
+  function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
+  function topicIndex(id) { return S.data.topics.findIndex(t => t.id === id); }
+  function shareOf(topic, d, si) { return S.data.share[topic][d][si]; }
+  function topicMax(topic) {
+    let m = 0;
+    for (const row of S.data.share[topic]) for (const v of row) if (v != null && v > m) m = v;
+    return m || 1e-6;
+  }
+  function pct(v) { return v == null ? '--' : (v * 100).toFixed(v < 0.01 ? 2 : 1) + '%'; }
+  function stateIndex(name) { return S.data.states.indexOf(name); }
+  function fmt(n) { return n.toLocaleString('en-US'); }
+
+  // ---------- UI: topic column ----------
+  function buildTopics() {
+    const ul = $('topics');
+    ul.innerHTML = '';
+    for (const t of S.data.topics) {
+      const li = document.createElement('li');
+      li.dataset.id = t.id;
+      li.innerHTML = `<button type="button"><div class="hl">${t.id}</div><div class="deck" data-deck="${t.id}"></div></button>`;
+      li.querySelector('button').addEventListener('click', () => setTopic(t.id));
+      ul.appendChild(li);
+    }
+    updateTopicDecks();
+  }
+  function updateTopicDecks() {
+    const d = S.decade;
+    for (const t of S.data.topics) {
+      const el = document.querySelector(`[data-deck="${t.id}"]`);
+      const v = S.data.national[t.id][d];
+      el.textContent = v == null ? 'no pages' : `${pct(v)} of pages, ${S.data.decades[d]}s`;
+    }
+    for (const li of document.querySelectorAll('.topics li')) li.classList.toggle('on', li.dataset.id === S.topic);
+  }
+  function setTopic(id) {
+    if (id === S.topic) return;
+    S.topic = id;
+    $('strip-topic').textContent = id;
+    updateTopicDecks();
+    drawStrip();
+    drawLegend();
+    restartFill();
+    if (S.audio) S.audio.key(0, 1.2);
+  }
+
+  // ---------- UI: dial ----------
+  function buildDial() {
+    const track = $('track');
+    const n = S.data.decades.length;
+    track.innerHTML = '';
+    S.data.decades.forEach((d, i) => {
+      const x = (i / (n - 1)) * 100;
+      const major = i % 2 === 0;
+      const tick = document.createElement('div');
+      tick.className = 'tick' + (i % 5 === 0 ? ' major' : '');
+      tick.style.left = x + '%';
+      track.appendChild(tick);
+      const lab = document.createElement('div');
+      lab.className = 'lab' + (i % 5 === 0 ? '' : ' minor');
+      lab.style.left = x + '%';
+      lab.textContent = i % 5 === 0 ? d + 's' : "'" + String(d).slice(2) + 's';
+      lab.style.left = i === 0 ? '0' : (i === n - 1 ? 'auto' : x + '%');
+      if (i === 0) lab.style.transform = 'none';
+      if (i === n - 1) { lab.style.right = '0'; lab.style.transform = 'none'; }
+      track.appendChild(lab);
+    });
+    const scrub = $('scrub');
+    scrub.max = n - 1;
+    scrub.addEventListener('input', () => { setDecade(+scrub.value); S.playing = false; updatePlay(); });
+    $('play').addEventListener('click', () => { S.playing = !S.playing; S.lastStep = performance.now(); updatePlay(); if (S.audio) S.audio.key(0, 0.8); });
+    $('mode-dots').addEventListener('click', () => setMode('dots'));
+    $('mode-head').addEventListener('click', () => setMode('head'));
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      if (e.key === 'ArrowRight') { setDecade(Math.min(n - 1, S.decade + 1)); S.playing = false; updatePlay(); }
+      if (e.key === 'ArrowLeft') { setDecade(Math.max(0, S.decade - 1)); S.playing = false; updatePlay(); }
+      if (e.key === ' ') { e.preventDefault(); S.playing = !S.playing; S.lastStep = performance.now(); updatePlay(); }
+    });
+  }
+  function updatePlay() { $('play').textContent = S.playing ? 'Stop the press' : 'Run the press'; }
+  function setMode(m) {
+    S.mode = m;
+    $('mode-dots').setAttribute('aria-pressed', m === 'dots');
+    $('mode-head').setAttribute('aria-pressed', m === 'head');
+    drawLegend();
+    restartFill();
+  }
+  function setDecade(d, silent) {
+    const changed = d !== S.decade;
+    S.decade = d;
+    const n = S.data.decades.length;
+    $('needle').style.left = (d / (n - 1)) * 100 + '%';
+    $('scrub').value = d;
+    $('readout').textContent = S.data.decades[d] + 's';
+    $('dl-decade').textContent = S.data.decades[d] + 's';
+    $('dl-left').textContent = `${fmt(S.data.pages_national[d])} pages`;
+    updateTopicDecks();
+    restartFill();
+    if (changed && !silent && S.audio) { S.audio.pageTurn(); S.audio.ding(); }
+  }
+  function restartFill() {
+    S.fillStart = performance.now();
+    S.typeStart = S.fillStart + 250;
+    buildHeadlines();
+    updateNumbers();
+    updateLate();
+  }
+
+  // ---------- layout: projection, dot grid ----------
+  function layout() {
+    const wrap = map.parentElement;
+    const w = Math.max(280, wrap.clientWidth);
+    const h = Math.round(w * 0.6);
+    S.dpr = Math.min(2, window.devicePixelRatio || 1);
+    S.w = w; S.h = h;
+    map.width = Math.round(w * S.dpr); map.height = Math.round(h * S.dpr);
+    map.style.height = h + 'px';
+    S.proj = d3.geoAlbersUsa().fitExtent([[4, 4], [w - 4, h - 4]], S.land);
+    S.path = d3.geoPath(S.proj);
+    // One Path2D per state, its bbox, its centroid, and its dot grid.
+    S.dotsByState = []; S.centroids = []; S.boxes = [];
+    const sp = SPACING * (w < 600 ? 0.8 : 1);
+    S.spacing = sp;
+    S.geo.forEach((f, gi) => {
+      const p = new Path2D(S.path(f));
+      f._path = p;
+      const b = S.path.bounds(f);
+      S.boxes.push(b);
+      const c = S.path.centroid(f);
+      S.centroids.push(c);
+      const pts = [];
+      const x0 = Math.floor(b[0][0] / sp) * sp, x1 = b[1][0], y0 = Math.floor(b[0][1] / sp) * sp, y1 = b[1][1];
+      let row = 0;
+      for (let y = y0; y <= y1; y += sp, row++) {
+        const off = (row % 2) * sp / 2;   // a staggered screen, like a real halftone
+        for (let x = x0 + off; x <= x1; x += sp) {
+          if (ctx.isPointInPath(p, x * S.dpr, y * S.dpr)) pts.push(x, y);
+        }
+      }
+      S.dotsByState.push(new Float32Array(pts));
+    });
+    S.si = S.geo.map(f => stateIndex(f.properties.name));
+    S.meshPath = new Path2D(S.path(S.mesh));
+    S.landPath = new Path2D(S.path(S.land));
+    buildHeadlines();
+    drawStrip();
+    drawLegend();
+    if (!S.audio) draw(performance.now());
+  }
+
+  // ---------- headlines (the top-lift topic per state) ----------
+  function buildHeadlines() {
+    if (!S.data || !S.centroids.length) return;
+    S.typed = [];
+    const d = S.decade;
+    const order = [];
+    S.geo.forEach((f, gi) => {
+      const si = S.si[gi];
+      if (si < 0) return;
+      const top = S.data.top_lift[d][si];
+      if (!top || !top.length) return;
+      const word = S.data.topics[top[0]].id.toUpperCase();
+      const b = S.boxes[gi];
+      const wpx = b[1][0] - b[0][0], hpx = b[1][1] - b[0][1];
+      const fontPx = S.w < 600 ? 9 : 12;
+      const needed = word.length * fontPx * 0.5 + 6;
+      const fits = wpx >= needed && hpx >= fontPx * 1.6;
+      order.push({ gi, si, word, x: S.centroids[gi][0], y: S.centroids[gi][1], fits, fontPx });
+    });
+    // West to east, so the typing sweeps across the page like a carriage.
+    order.sort((a, b) => a.x - b.x);
+    order.forEach((o, i) => { o.start = i * 55; });
+    S.typed = order;
+  }
+
+  // ---------- drawing ----------
+  function frame(now) {
+    if (S.playing && now - S.lastStep > DECADE_MS) {
+      S.lastStep = now;
+      setDecade((S.decade + 1) % S.data.decades.length);
+    }
+    draw(now);
+    if (S.audio) S.audio.tick(now);
+    requestAnimationFrame(frame);
+  }
+
+  function draw(now) {
+    const { w, h, dpr } = S;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const d = S.decade, topic = S.topic;
+    const tmax = topicMax(topic);
+    const rmax = S.spacing * 0.62;
+    const t = Math.min(1, (now - S.fillStart) / FILL_MS);
+    const headMode = S.mode === 'head';
+
+    // 1. no-data states: a lighter sheet of paper
+    ctx.fillStyle = '#e0d8c4';
+    S.geo.forEach((f, gi) => {
+      const si = S.si[gi];
+      if (si < 0 || shareOf(topic, d, si) == null) ctx.fill(f._path);
+    });
+
+    // 2. halftone dots. The sheet fills from the top down, dot by dot.
+    ctx.fillStyle = headMode ? '#8f8a80' : INK;
+    let revealed = 0;
+    S.geo.forEach((f, gi) => {
+      const si = S.si[gi];
+      if (si < 0) return;
+      const v = shareOf(topic, d, si);
+      if (v == null) return;
+      const r = rmax * Math.sqrt(v / tmax) * (headMode ? 0.75 : 1);
+      if (r < 0.35) return;
+      const pts = S.dotsByState[gi];
+      const hov = gi === S.hover;
+      if (hov) ctx.fillStyle = RED;
+      for (let i = 0; i < pts.length; i += 2) {
+        const y = pts[i + 1];
+        // reveal by vertical position, with a small jitter per column
+        const jitter = ((pts[i] * 7.31) % 1) * 0.08;
+        const rt = Math.min(1, Math.max(0, (t - (y / h) * 0.85 - jitter) / 0.15));
+        if (rt <= 0) continue;
+        revealed++;
+        const rr = r * rt;
+        ctx.beginPath();
+        ctx.arc(pts[i], y, rr, 0, 6.2832);
+        ctx.fill();
+      }
+      if (hov) ctx.fillStyle = headMode ? '#8f8a80' : INK;
+    });
+    S.revealed = revealed;
+
+    // 3. borders
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.6; ctx.stroke(S.meshPath);
+    ctx.lineWidth = 0.9; ctx.stroke(S.landPath);
+
+    // 4. headlines typed over each state
+    if (headMode) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const el = now - S.typeStart;
+      let newChars = 0;
+      for (const o of S.typed) {
+        if (!o.fits) continue;
+        const n = Math.max(0, Math.min(o.word.length, Math.floor((el - o.start) / 45)));
+        if (n === 0) continue;
+        if (n > (o.shown || 0)) { newChars += n - (o.shown || 0); o.shown = n; o.lastX = o.x; }
+        const s = o.word.slice(0, n) + (n < o.word.length ? '_' : '');
+        ctx.font = `${o.fontPx}px Anton, Impact, "Arial Narrow", sans-serif`;
+        ctx.lineWidth = 3; ctx.strokeStyle = PAPER; ctx.lineJoin = 'round';
+        ctx.strokeText(s, o.x, o.y);
+        ctx.fillStyle = (o.gi === S.hover) ? RED : INK;
+        ctx.fillText(s, o.x, o.y);
+      }
+      if (newChars > 0 && S.audio) {
+        // one click per frame at most, panned to the state that just typed
+        const last = S.typed.filter(o => o.fits && o.shown && o.shown <= o.word.length).pop();
+        S.audio.key(last ? (last.x / S.w) * 2 - 1 : 0, 0.5 + Math.min(0.5, newChars * 0.15));
+      }
+    }
+  }
+
+  // small multiples: one mini map per decade for the topic, gray fill = share
+  function drawStrip() {
+    if (!S.data || !S.proj) return;
+    const n = S.data.decades.length;
+    const scroll = strip.parentElement;
+    const avail = scroll.clientWidth;
+    const cw = Math.max(64, Math.floor(avail / n));
+    const chh = Math.round(cw * 0.64) + 14;
+    const W = cw * n, H = chh;
+    strip.width = Math.round(W * S.dpr); strip.height = Math.round(H * S.dpr);
+    strip.style.width = W + 'px'; strip.style.height = H + 'px';
+    sctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    sctx.clearRect(0, 0, W, H);
+    const proj = d3.geoAlbersUsa().fitExtent([[2, 2], [cw - 2, chh - 16]], S.land);
+    const path = d3.geoPath(proj, sctx);
+    const tmax = topicMax(S.topic);
+    for (let d = 0; d < n; d++) {
+      sctx.save();
+      sctx.translate(d * cw, 0);
+      S.geo.forEach((f, gi) => {
+        const si = S.si[gi];
+        const v = si < 0 ? null : shareOf(S.topic, d, si);
+        sctx.beginPath(); path(f);
+        if (v == null) { sctx.fillStyle = '#e0d8c4'; }
+        else { const k = Math.sqrt(v / tmax); sctx.fillStyle = d3.interpolateRgb(PAPER, INK)(0.08 + 0.92 * k); }
+        sctx.fill();
+      });
+      sctx.beginPath(); path(S.landPathGeo || S.land); sctx.strokeStyle = INK; sctx.lineWidth = 0.4; sctx.stroke();
+      sctx.fillStyle = d === S.decade ? RED : INK;
+      sctx.font = '10px "Special Elite","Courier New",monospace'; sctx.textAlign = 'center'; sctx.textBaseline = 'alphabetic';
+      const yr = S.data.decades[d];
+      sctx.fillText(d % 5 === 0 ? yr + 's' : "'" + String(yr).slice(2) + 's', cw / 2, chh - 3);
+      if (d === S.decade) { sctx.strokeStyle = RED; sctx.lineWidth = 1.5; sctx.strokeRect(1, 1, cw - 2, chh - 2); }
+      sctx.restore();
+    }
+  }
+  strip.addEventListener('click', (e) => {
+    if (!S.data) return;
+    const r = strip.getBoundingClientRect();
+    const n = S.data.decades.length;
+    const d = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / (r.width / n))));
+    S.playing = false; updatePlay(); setDecade(d);
+  });
+
+  function drawLegend() {
+    if (!S.data) return;
+    const c = $('legend-canvas'), lctx = c.getContext('2d');
+    const w = c.parentElement.clientWidth, h = 34;
+    c.width = Math.round(w * S.dpr); c.height = Math.round(h * S.dpr); c.style.height = h + 'px';
+    lctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    lctx.clearRect(0, 0, w, h);
+    const tmax = topicMax(S.topic);
+    const steps = 8, rmax = SPACING * 0.62;
+    for (let i = 0; i < steps; i++) {
+      const v = (i + 1) / steps;
+      const cx = (i + 0.5) * (w * 0.72 / steps), r = rmax * Math.sqrt(v);
+      for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) {
+        lctx.beginPath(); lctx.arc(cx + j * SPACING + (k % 2 ? SPACING / 2 : 0), 17 + k * SPACING, r, 0, 6.2832); lctx.fillStyle = INK; lctx.fill();
+      }
+    }
+    lctx.fillStyle = '#e0d8c4'; lctx.fillRect(w * 0.78, 6, w * 0.2, 22);
+    lctx.strokeStyle = INK; lctx.lineWidth = 0.6; lctx.strokeRect(w * 0.78, 6, w * 0.2, 22);
+    $('legend-max').textContent = `${pct(tmax)} of pages, "${S.topic}"`;
+    $('legend-note').innerHTML = (S.mode === 'head'
+      ? 'Light sheet = fewer than 300 pages. Dots show the chosen word, faded. The typed word is the topic with the highest lift: its share here divided by its all-time national share.'
+      : 'Light sheet = fewer than 300 pages digitized. Dot area is proportional to the share. The scale is fixed per topic, so decades compare.');
+  }
+
+  function updateNumbers() {
+    const ul = $('numbers');
+    const d = S.decade, topic = S.topic;
+    const rows = S.data.states.map((s, i) => ({ s, v: shareOf(topic, d, i), n: S.data.pages[d][i] }))
+      .filter(r => r.v != null).sort((a, b) => b.v - a.v);
+    const nat = S.data.national[topic][d];
+    const top = rows.slice(0, 6);
+    ul.innerHTML = top.map(r => `<li><span>${r.s}</span><span>${pct(r.v)}</span></li>`).join('') +
+      `<li class="hl"><span>All states, "${topic}"</span><span>${pct(nat)}</span></li>` +
+      `<li><span>States with 300+ pages</span><span>${rows.length} of ${S.data.states.length}</span></li>`;
+  }
+
+  // headlines for the states too small to carry a word on the map
+  function updateLate() {
+    const wrap = $('late-wrap'), dl = $('late');
+    if (S.mode !== 'head') { wrap.style.display = 'none'; return; }
+    const small = S.typed.filter(o => !o.fits);
+    if (!small.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    dl.innerHTML = small.map(o => `<span class="item"><dt>${abbr(S.geo[o.gi].properties.name)}</dt> <dd>${o.word.toLowerCase()}</dd></span>`).join('');
+  }
+  const ABBR = { 'Connecticut': 'CT', 'Delaware': 'DE', 'District of Columbia': 'DC', 'Maryland': 'MD', 'Massachusetts': 'MA', 'New Hampshire': 'NH', 'New Jersey': 'NJ', 'Rhode Island': 'RI', 'Vermont': 'VT', 'Hawaii': 'HI', 'West Virginia': 'WV', 'Maine': 'ME', 'South Carolina': 'SC', 'Louisiana': 'LA', 'Mississippi': 'MS', 'Alabama': 'AL', 'Georgia': 'GA', 'Florida': 'FL', 'Tennessee': 'TN', 'Kentucky': 'KY', 'Virginia': 'VA', 'North Carolina': 'NC', 'Indiana': 'IN', 'Ohio': 'OH', 'Michigan': 'MI', 'Illinois': 'IL', 'Wisconsin': 'WI', 'Pennsylvania': 'PA', 'New York': 'NY', 'Arkansas': 'AR', 'Missouri': 'MO', 'Iowa': 'IA', 'Minnesota': 'MN', 'Oklahoma': 'OK', 'Idaho': 'ID', 'Washington': 'WA', 'Oregon': 'OR', 'Alaska': 'AK', 'Arizona': 'AZ', 'Utah': 'UT', 'Nevada': 'NV', 'California': 'CA', 'Colorado': 'CO', 'Wyoming': 'WY', 'Montana': 'MT', 'Nebraska': 'NE', 'Kansas': 'KS', 'Texas': 'TX', 'New Mexico': 'NM', 'North Dakota': 'ND', 'South Dakota': 'SD' };
+  function abbr(n) { return ABBR[n] || n; }
+
+  // ---------- hover and touch ----------
+  function hitTest(x, y) {
+    for (let gi = 0; gi < S.geo.length; gi++) {
+      const b = S.boxes[gi];
+      if (x < b[0][0] || x > b[1][0] || y < b[0][1] || y > b[1][1]) continue;
+      if (ctx.isPointInPath(S.geo[gi]._path, x * S.dpr, y * S.dpr)) return gi;
+    }
+    return -1;
+  }
+  function showTip(gi, x, y) {
+    const name = S.geo[gi].properties.name, si = S.si[gi], d = S.decade;
+    const v = si < 0 ? null : shareOf(S.topic, d, si);
+    const n = si < 0 ? 0 : S.data.pages[d][si];
+    const top = si < 0 ? [] : (S.data.top_lift[d][si] || []);
+    tip.innerHTML = `<div class="t-state">${name}</div>` +
+      (v == null ? `<div class="t-share">${n ? fmt(n) + ' pages, too few' : 'no pages digitized'}</div>` :
+        `<div class="t-share"><span class="red">${pct(v)}</span> of ${fmt(n)} pages print "${S.topic}"</div>` +
+        `<div class="t-top">stands out: ${top.map(i => S.data.topics[i].id).join(', ')}</div>`);
+    tip.style.display = 'block';
+    const r = map.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let lx = x + 14, ly = y + 14;
+    if (lx + tw > r.width) lx = x - tw - 10;
+    if (ly + th > r.height) ly = y - th - 10;
+    tip.style.left = Math.max(0, lx) + 'px'; tip.style.top = Math.max(0, ly) + 'px';
+  }
+  function onPointer(e) {
+    const r = map.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const gi = hitTest(x, y);
+    if (gi !== S.hover) {
+      S.hover = gi;
+      if (gi >= 0 && S.audio) S.audio.key((x / S.w) * 2 - 1, 0.7);
+    }
+    if (gi >= 0) showTip(gi, x, y); else tip.style.display = 'none';
+  }
+  map.addEventListener('pointermove', onPointer);
+  map.addEventListener('pointerdown', onPointer);
+  map.addEventListener('pointerleave', () => { S.hover = -1; tip.style.display = 'none'; });
+
+  // ---------- the typed masthead ----------
+  function typeTitle() {
+    const el = $('title-text');
+    let i = 0;
+    const step = () => {
+      i++;
+      el.textContent = TITLE.slice(0, i).toUpperCase();
+      if (S.audio && TITLE[i - 1] !== ' ') S.audio.key((i / TITLE.length) * 1.4 - 0.7, 1);
+      if (i < TITLE.length) setTimeout(step, 55 + Math.random() * 40);
+      else { if (S.audio) S.audio.ding(); setTimeout(() => { const c = document.querySelector('.caret'); if (c) c.style.display = 'none'; }, 1800); }
+    };
+    step();
+  }
+
+  // ---------- sound ----------
+  // Everything routes through masterGain. All sources are synthesized.
+  function makeAudio(ac, master) {
+    if (!ac) return null;
+    const out = ac.createDynamicsCompressor();
+    out.threshold.value = -18; out.knee.value = 12; out.ratio.value = 4; out.attack.value = 0.005; out.release.value = 0.2;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500; lp.Q.value = 0.5;
+    out.connect(lp); lp.connect(master);
+
+    // reverb: a generated noise impulse response, 1.4 s
+    const conv = ac.createConvolver();
+    const irLen = Math.floor(ac.sampleRate * 1.4);
+    const ir = ac.createBuffer(2, irLen, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const b = ir.getChannelData(ch);
+      for (let i = 0; i < irLen; i++) b[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3.2) * 0.5;
+    }
+    conv.buffer = ir;
+    const wet = ac.createGain(); wet.gain.value = 0.22;
+    conv.connect(wet); wet.connect(out);
+    const dry = ac.createGain(); dry.gain.value = 1; dry.connect(out); dry.connect(conv);
+
+    // noise buffer, 2 s white noise, shared by the clicks and the page turn
+    const nLen = ac.sampleRate * 2;
+    const noise = ac.createBuffer(1, nLen, ac.sampleRate);
+    const nd = noise.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+
+    // the press: brown noise, low-pass, slow throb. Level follows the national share.
+    const brown = ac.createBuffer(1, nLen, ac.sampleRate);
+    const bd = brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < nLen; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; bd[i] = last * 3.5; }
+    const press = ac.createBufferSource(); press.buffer = brown; press.loop = true;
+    const pressLp = ac.createBiquadFilter(); pressLp.type = 'lowpass'; pressLp.frequency.value = 120; pressLp.Q.value = 0.9;
+    const pressGain = ac.createGain(); pressGain.gain.value = 0;
+    const throb = ac.createGain(); throb.gain.value = 0.7;
+    const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 2.2;
+    const lfoGain = ac.createGain(); lfoGain.gain.value = 0.3;
+    lfo.connect(lfoGain); lfoGain.connect(throb.gain);
+    press.connect(pressLp); pressLp.connect(throb); throb.connect(pressGain); pressGain.connect(dry);
+    press.start(); lfo.start();
+
+    let lastKey = 0;
+    const api = {
+      key(pan, strength) {
+        const t = ac.currentTime;
+        if (t - lastKey < 0.03) return;
+        lastKey = t;
+        const src = ac.createBufferSource(); src.buffer = noise;
+        src.playbackRate.value = 0.8 + Math.random() * 0.5;
+        const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200 + Math.random() * 1600; bp.Q.value = 1.2;
+        const g = ac.createGain();
+        const a = 0.09 * (strength || 1);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.045);
+        const p = ac.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan || 0));
+        src.connect(bp); bp.connect(g); g.connect(p); p.connect(dry);
+        // the thock of the type bar on the platen
+        const o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(190 + Math.random() * 40, t);
+        o.frequency.exponentialRampToValueAtTime(90, t + 0.04);
+        const og = ac.createGain(); og.gain.setValueAtTime(0, t); og.gain.linearRampToValueAtTime(0.05 * (strength || 1), t + 0.003); og.gain.exponentialRampToValueAtTime(0.0005, t + 0.06);
+        o.connect(og); og.connect(p);
+        src.start(t); src.stop(t + 0.08); o.start(t); o.stop(t + 0.08);
+      },
+      ding() {
+        const t = ac.currentTime;
+        [1870, 1870 * 2.76].forEach((f, i) => {
+          const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+          const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(i ? 0.03 : 0.08, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0003, t + 1.1);
+          o.connect(g); g.connect(dry); o.start(t); o.stop(t + 1.2);
+        });
+      },
+      pageTurn() {
+        const t = ac.currentTime;
+        const src = ac.createBufferSource(); src.buffer = noise;
+        const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.8;
+        bp.frequency.setValueAtTime(500, t); bp.frequency.exponentialRampToValueAtTime(2600, t + 0.28);
+        const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.42);
+        src.connect(bp); bp.connect(g); g.connect(dry); src.start(t); src.stop(t + 0.5);
+      },
+      // called every frame: the press follows the national share of the topic
+      tick(now) {
+        const nat = S.data.national[S.topic][S.decade];
+        const tmax = topicMax(S.topic);
+        const k = nat == null ? 0 : Math.min(1, nat / tmax);
+        const t = ac.currentTime;
+        pressGain.gain.setTargetAtTime(0.05 + 0.33 * k, t, 0.4);
+        pressLp.frequency.setTargetAtTime(90 + 260 * k, t, 0.4);
+        // the throb speed follows how many states carry the topic
+        const row = S.data.share[S.topic][S.decade];
+        let n = 0, m = 0;
+        for (const v of row) { if (v != null) { m++; if (v > 0.02) n++; } }
+        lfo.frequency.setTargetAtTime(1.4 + 2.6 * (m ? n / m : 0), t, 0.6);
+        // dots filling in: soft ticks whose density follows the fill rate
+        const el = now - S.fillStart;
+        if (S.mode === 'dots' && el < FILL_MS && Math.random() < Math.min(0.6, (S.revealed || 0) / 6000)) {
+          api.key(Math.random() * 1.6 - 0.8, 0.25);
+        }
+      },
+    };
+    return api;
+  }
+})();
+</script>
+</body>
+</html>
