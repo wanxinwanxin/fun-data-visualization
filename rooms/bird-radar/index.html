@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Birds on the Radar</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/share-tech-mono@5.2.6/index.css">
+<style>
+  :root {
+    --ph: #48ff80;        /* phosphor green, bright */
+    --ph-mid: #2fcf62;
+    --ph-dim: #1a7a3a;
+    --ph-text: #b9ffcf;
+    --ph-label: #7fd99a;
+    --amber: #e2aa63;
+    --amber-dim: #7a4f1e;
+    --metal: #3a3a3c;
+    --metal-hi: #6b6b6e;
+    --metal-lo: #141416;
+    --paper: #e9e2c8;
+    --paper-grid: #c9a46a;
+    --ink: #1f1d1a;
+    --pen: #c8321f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    color: var(--ph-text);
+    font-family: 'Share Tech Mono', Menlo, Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-x: hidden;
+    background:
+      radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,.55) 50%, transparent 51%),
+      radial-gradient(1px 1px at 78% 9%, rgba(255,255,255,.45) 50%, transparent 51%),
+      radial-gradient(1px 1px at 55% 27%, rgba(255,255,255,.35) 50%, transparent 51%),
+      radial-gradient(1px 1px at 91% 38%, rgba(255,255,255,.4) 50%, transparent 51%),
+      radial-gradient(1px 1px at 30% 52%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(1px 1px at 66% 71%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 85% 83%, rgba(255,255,255,.35) 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 88%, rgba(255,255,255,.35) 50%, transparent 51%),
+      linear-gradient(180deg, #3b1c3e 0%, #231741 22%, #0d0f26 55%, #04050f 100%);
+    background-attachment: fixed;
+  }
+  a { color: var(--ph-label); }
+  .plate {
+    max-width: 1280px; margin: 0 auto; padding: 14px 16px 4px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .plate h1 {
+    margin: 0; font-weight: 400; font-size: clamp(20px, 3vw, 30px); letter-spacing: .12em;
+    color: #e6fff0; text-shadow: 0 0 10px rgba(72,255,128,.45);
+  }
+  .plate .sub { font-size: 12px; letter-spacing: .14em; color: var(--ph-label); }
+  .console {
+    max-width: 1280px; margin: 0 auto; padding: 8px 16px 90px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas:
+      "scope panel"
+      "recorder recorder"
+      "caption caption";
+    gap: 14px 24px; align-items: start;
+  }
+  @media (max-width: 860px) {
+    .console { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scope" "panel" "recorder" "caption"; gap: 16px; padding-bottom: 80px; }
+  }
+  /* ---- scope ---- */
+  .scope-unit { grid-area: scope; display: flex; justify-content: center; }
+  .bezel {
+    position: relative; border-radius: 50%;
+    background:
+      radial-gradient(circle closest-side at 50% 50%, #000 0 88%, #2a2a2c 89%, var(--metal-hi) 91%, var(--metal) 95%, var(--metal-hi) 98%, var(--metal-lo) 100%);
+    box-shadow: 0 0 0 1px #0a0a0a, 0 12px 40px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.08);
+    padding: 5.5%;
+  }
+  .bezel::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from 200deg, rgba(255,255,255,.08), rgba(255,255,255,0) 30%, rgba(255,255,255,.05) 55%, rgba(255,255,255,0) 80%, rgba(255,255,255,.08));
+  }
+  .screen { position: relative; border-radius: 50%; overflow: hidden; background: #030805;
+    box-shadow: inset 0 0 40px rgba(0,0,0,.9), inset 0 0 6px #000; }
+  .screen canvas { display: block; width: 100%; height: 100%; border-radius: 50%; }
+  .glass {
+    position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 38% at 38% 22%, rgba(255,255,255,.10), rgba(255,255,255,0) 70%),
+      radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,.45) 100%),
+      repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.12) 2px 3px);
+  }
+  /* ---- panel ---- */
+  .panel { grid-area: panel; display: grid; gap: 10px; min-width: 0; }
+  .module {
+    border: 1px solid #2a2a2c; border-radius: 8px; padding: 10px 12px;
+    background: linear-gradient(180deg, #232325, #161618);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.5);
+  }
+  .module h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .18em; font-weight: 400; color: #9a9a9e; }
+  .readout {
+    background: #040a06; border-radius: 6px; padding: 10px 12px; border: 1px solid #0f2a18;
+    box-shadow: inset 0 0 18px rgba(0,0,0,.9), 0 0 10px rgba(72,255,128,.08);
+    color: var(--ph); text-shadow: 0 0 6px rgba(72,255,128,.5); font-size: 13px; line-height: 1.55;
+    white-space: pre; overflow: hidden; min-height: 112px;
+  }
+  .readout .dim { color: var(--ph-label); text-shadow: none; }
+  .readout .wx { color: var(--amber); text-shadow: 0 0 6px rgba(226,170,99,.5); }
+  .lamps { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; letter-spacing: .1em; color: #9a9a9e; align-items: center; flex-wrap: wrap; }
+  .lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2a2a2c; margin-right: 6px; vertical-align: middle;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.8); }
+  .lamp.on-green { background: var(--ph); box-shadow: 0 0 8px var(--ph); }
+  .lamp.on-amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  .controls { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; }
+  .rotary { display: grid; justify-items: center; gap: 4px; }
+  .knob {
+    width: 72px; height: 72px; border-radius: 50%; cursor: pointer; position: relative;
+    background: radial-gradient(circle at 40% 35%, #7a7a7e, #3a3a3c 55%, #202022 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,.7), inset 0 1px 1px rgba(255,255,255,.25), 0 0 0 3px #111, 0 0 0 4px #333;
+    transition: transform .35s cubic-bezier(.3,1.4,.5,1);
+  }
+  .knob::after {
+    content: ""; position: absolute; left: 50%; top: 6px; width: 4px; height: 24px; margin-left: -2px; border-radius: 2px;
+    background: var(--ph); box-shadow: 0 0 6px var(--ph);
+  }
+  .rotary .labels { display: flex; gap: 6px; }
+  .rotary button, .btn {
+    font: inherit; font-size: 11px; letter-spacing: .08em; color: #c9c9cc; cursor: pointer;
+    background: linear-gradient(180deg, #3a3a3d, #202022); border: 1px solid #0d0d0e; border-radius: 4px; padding: 4px 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .rotary button[aria-pressed="true"] { color: var(--ph); text-shadow: 0 0 6px var(--ph); border-color: #1d5a33; }
+  .stack { display: grid; gap: 8px; min-width: 0; }
+  .switch {
+    display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-size: 12px; letter-spacing: .1em; color: #c9c9cc;
+    background: none; border: 0; padding: 0; font-family: inherit;
+  }
+  .switch .lever {
+    width: 46px; height: 22px; border-radius: 11px; position: relative; background: #0e0e10; border: 1px solid #333;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.9);
+  }
+  .switch .lever::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #9a9a9e, #4a4a4e); transition: left .18s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.8);
+  }
+  .switch[aria-pressed="true"] .lever::after { left: 26px; background: radial-gradient(circle at 40% 35%, #a8ffc4, #1f9a4a); box-shadow: 0 0 8px var(--ph); }
+  .scrub { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+  .scrub .btn { width: 30px; height: 30px; padding: 0; font-size: 13px; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; margin: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px; background: #0b0b0d; border: 1px solid #333; box-shadow: inset 0 2px 5px rgba(0,0,0,.9);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 24px; margin-top: -9px; border-radius: 3px;
+    background: linear-gradient(180deg, #d9b56a, #8c6a2a); border: 1px solid #3a2a10; box-shadow: 0 2px 4px rgba(0,0,0,.7);
+  }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: #0b0b0d; border: 1px solid #333; }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 24px; border-radius: 3px; background: linear-gradient(180deg, #d9b56a, #8c6a2a); border: 1px solid #3a2a10; }
+  .scrub-label { font-size: 11px; letter-spacing: .1em; color: #9a9a9e; display: flex; justify-content: space-between; }
+  .legend-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: 10px; align-items: center; }
+  .legend { display: grid; gap: 6px; font-size: 11px; color: #c9c9cc; min-width: 0; }
+  .legend .bar { height: 12px; border-radius: 2px; border: 1px solid #0a0a0a;
+    background: linear-gradient(90deg, #07220f 0%, #157d38 35%, #48ff80 70%, #e6fff0 100%); }
+  .legend .ticks { display: flex; justify-content: space-between; color: #9a9a9e; }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .legend .sw { width: 22px; height: 12px; border-radius: 2px; border: 1px solid #0a0a0a; }
+  .inset { display: block; width: 100%; height: auto; }
+  /* ---- recorder ---- */
+  .recorder { grid-area: recorder; min-width: 0; }
+  .recorder .paper-frame {
+    border: 1px solid #2a2a2c; border-radius: 8px; padding: 10px 12px 8px;
+    background: linear-gradient(180deg, #232325, #161618); box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  }
+  .recorder h2 { margin: 0 0 6px; font-size: 11px; letter-spacing: .18em; font-weight: 400; color: #9a9a9e; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .recorder canvas { display: block; width: 100%; height: 140px; border-radius: 3px; box-shadow: inset 0 0 12px rgba(0,0,0,.5); }
+  @media (max-width: 860px) { .recorder canvas { height: 120px; } }
+  /* ---- caption ---- */
+  .caption { grid-area: caption; color: var(--ph-label); font-size: 12.5px; max-width: 980px; }
+  .caption p { margin: 0 0 8px; }
+  .caption .src { color: #8a8a8e; font-size: 11.5px; }
+  .caption strong { color: var(--ph-text); font-weight: 400; }
+</style>
+</head>
+<body>
+<header class="plate">
+  <h1>BIRDS ON THE RADAR</h1>
+  <div class="sub">NEXRAD LEVEL II · 0.5° REFLECTIVITY · SPRING 2024 · 100 KM RANGE</div>
+</header>
+
+<main class="console">
+  <section class="scope-unit">
+    <div class="bezel" id="bezel">
+      <div class="screen" id="screen">
+        <canvas id="scope" aria-label="Radar scope with the reflectivity of the selected scan"></canvas>
+        <div class="glass"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="module">
+      <h2>READOUT</h2>
+      <div class="readout" id="readout">LOADING SCANS…</div>
+      <div class="lamps">
+        <span><i class="lamp" id="lamp-run"></i>RUN</span>
+        <span><i class="lamp" id="lamp-bio"></i>BIRDS</span>
+        <span><i class="lamp" id="lamp-wx"></i>WEATHER</span>
+      </div>
+    </div>
+
+    <div class="module">
+      <h2>STATION · NIGHT</h2>
+      <div class="controls">
+        <div class="rotary">
+          <div class="knob" id="knob" role="button" tabindex="0" aria-label="Station selector, click to cycle"></div>
+          <div class="labels" id="station-labels">
+            <button data-st="0" aria-pressed="true">KTLX</button>
+            <button data-st="1" aria-pressed="false">KLOT</button>
+            <button data-st="2" aria-pressed="false">KDOX</button>
+          </div>
+        </div>
+        <div class="stack">
+          <button class="switch" id="run" aria-pressed="true"><span class="lever"></span><span id="run-label">RUN</span></button>
+          <div class="scrub-label"><span>NIGHT</span><span id="night-label">–</span></div>
+          <div class="scrub">
+            <button class="btn" id="prev" aria-label="Previous night">◀</button>
+            <input type="range" id="night" min="0" max="0" value="0" step="1" aria-label="Night scrubber">
+            <button class="btn" id="next" aria-label="Next night">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <h2>LEGEND · REFLECTIVITY</h2>
+      <div class="legend-wrap">
+      <div class="legend">
+        <div class="bar"></div>
+        <div class="ticks"><span>−5</span><span>5</span><span>15</span><span>25</span><span>30 dBZ</span></div>
+        <div class="row"><span class="sw" style="background:#48ff80"></span><span>biological echo, ρHV &lt; 0.95 (birds, bats, insects)</span></div>
+        <div class="row"><span class="sw" style="background:#e2aa63"></span><span>rain-like echo, ρHV ≥ 0.95</span></div>
+      </div>
+      <svg class="inset" id="inset" viewBox="0 0 320 190" aria-label="Map of the three radar stations"></svg>
+      </div>
+    </div>
+  </aside>
+
+  <section class="recorder">
+    <div class="paper-frame">
+      <h2><span>PEN RECORDER · BIOLOGICAL INDEX, dBZ, 5–80 KM, THREE SCANS PER NIGHT</span><span id="rec-station">KTLX</span></h2>
+      <canvas id="strip" aria-label="Strip chart of the biological index across all nights"></canvas>
+    </div>
+  </section>
+
+  <footer class="caption">
+    <p><strong>What you see.</strong> The sweep paints one radar scan per turn: one hour before sunset, one hour after, then 2.5 hours after. On a clear spring night the scope fills with a ring of green echo. That ring is birds, aloft by the million. Amber marks rain-like echo. The pen recorder below tracks the biological index across all 36 nights.</p>
+    <p><strong>What you hear.</strong> Chirps are the migration. Their rate follows the biological index of the scan on the scope, and they pan toward the bearing of the strongest biological echo. A soft whoosh marks each sweep. A rain hiss rises with the share of rain-like echo. A night chorus of filtered noise sits underneath.</p>
+    <p class="src">Source: NOAA NEXRAD Level II archive (AWS Open Data, read from the Unidata mirror bucket), stations KTLX, KLOT, KDOX, 20 April to 25 May 2024, lowest 0.5° sweep, reflectivity and correlation coefficient. Processed with MetPy. <a href="README.md">README</a></p>
+  </footer>
+</main>
+
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const AZ = 360, RN = 40, BINS = AZ * RN;
+  const ROT_SEC = 2.6;               /* seconds per sweep rotation */
+  const BIO_STOPS = [[0, '#07220f'], [0.35, '#157d38'], [0.7, '#48ff80'], [1, '#e6fff0']];
+  const WX_STOPS = [[0, '#2a1a06'], [0.5, '#9c6424'], [1, '#e2aa63']];
+  const LEVELS = 64;
+
+  let manifest = null, frames = null;
+  let station = 0, night = 0, phase = 0;
+  let playing = true;
+  let sweep = 0;                     /* degrees clockwise from north */
+  let lastT = 0;
+  const painted = new Int32Array(AZ).fill(-1);
+  let curFrame = -1;
+  let audio = null;
+
+  /* ---------- color tables ---------- */
+  function hex(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
+  function ramp(stops, t) {
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 0; i < stops.length - 1; i++) {
+      const [t0, c0] = stops[i], [t1, c1] = stops[i + 1];
+      if (t <= t1) {
+        const u = (t - t0) / (t1 - t0), a = hex(c0), b = hex(c1);
+        return a.map((x, k) => x + (b[k] - x) * u);
+      }
+    }
+    return hex(stops[stops.length - 1][1]);
+  }
+  function qToDbz(q) { return (q - 1) / 62 * 50 - 10; }
+  function qToT(q) { return Math.pow(Math.max(0, Math.min(1, (qToDbz(q) + 5) / 35)), 0.9); }
+  /* lut[level * 256 + byte] = packed ABGR color after afterglow decay */
+  const lut = new Uint32Array(LEVELS * 256);
+  (function buildLut() {
+    const bg = [3, 8, 5];
+    for (let lv = 0; lv < LEVELS; lv++) {
+      const b = lv / (LEVELS - 1);
+      for (let v = 0; v < 256; v++) {
+        const q = v & 63, cls = v >> 6;
+        let c;
+        if (q === 0) c = bg;
+        else {
+          const rgb = ramp(cls === 2 ? WX_STOPS : BIO_STOPS, qToT(q));
+          c = [bg[0] + (rgb[0] - bg[0]) * b, bg[1] + (rgb[1] - bg[1]) * b, bg[2] + (rgb[2] - bg[2]) * b];
+        }
+        lut[lv * 256 + v] = (255 << 24) | (Math.round(c[2]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[0]);
+      }
+    }
+  })();
+  /* afterglow as a function of degrees behind the sweep */
+  const decayLevel = new Uint8Array(360);
+  for (let d = 0; d < 360; d++) decayLevel[d] = Math.round((LEVELS - 1) * (0.34 + 0.66 * Math.exp(-d / 75)));
+
+  /* ---------- scope canvas ---------- */
+  const scopeEl = document.getElementById('scope');
+  const screenEl = document.getElementById('screen');
+  const bezelEl = document.getElementById('bezel');
+  const sctx = scopeEl.getContext('2d');
+  let S = 0, img = null, px = null, binIdx = null, azOf = null;
+  const lvlOfAz = new Uint8Array(AZ);
+
+  function sizeScope() {
+    const unit = bezelEl.parentElement;
+    const avail = Math.min(unit.clientWidth, Math.max(300, window.innerHeight * 0.62));
+    bezelEl.style.width = avail + 'px';
+    bezelEl.style.height = avail + 'px';
+    const inner = screenEl.clientWidth;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const s = Math.max(200, Math.min(900, Math.round(inner * dpr)));
+    if (s === S) return;
+    S = s;
+    scopeEl.width = S; scopeEl.height = S;
+    img = sctx.createImageData(S, S);
+    px = new Uint32Array(img.data.buffer);
+    binIdx = new Int32Array(S * S);
+    azOf = new Int16Array(S * S);
+    const c = (S - 1) / 2, R = S / 2;
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const dx = x - c, dy = y - c, r = Math.sqrt(dx * dx + dy * dy);
+      const i = y * S + x;
+      if (r >= R) { binIdx[i] = -1; continue; }
+      const ri = Math.min(RN - 1, Math.floor(r / R * RN));
+      let a = Math.atan2(dx, -dy) * 180 / Math.PI; if (a < 0) a += 360;
+      const ai = Math.floor(a) % AZ;
+      binIdx[i] = ai * RN + ri; azOf[i] = ai;
+    }
+  }
+
+  function drawScope() {
+    if (!px) return;
+    const sw = Math.floor(sweep);
+    for (let a = 0; a < AZ; a++) lvlOfAz[a] = decayLevel[((sw - a) % 360 + 360) % 360];
+    const N = S * S;
+    for (let i = 0; i < N; i++) {
+      const bi = binIdx[i];
+      if (bi < 0) { px[i] = 0; continue; }
+      const a = azOf[i], f = painted[a];
+      const v = f < 0 ? 0 : frames[f * BINS + bi];
+      px[i] = lut[lvlOfAz[a] * 256 + v];
+    }
+    sctx.putImageData(img, 0, 0);
+    /* grid: range rings, bearing ticks, sweep line */
+    const c = S / 2, R = S / 2;
+    sctx.save();
+    sctx.translate(c, c);
+    sctx.strokeStyle = 'rgba(80,200,120,0.42)';
+    sctx.lineWidth = 1;
+    for (let k = 1; k <= 4; k++) { sctx.beginPath(); sctx.arc(0, 0, R * k / 4, 0, Math.PI * 2); sctx.stroke(); }
+    sctx.strokeStyle = 'rgba(80,200,120,0.28)';
+    for (let d = 0; d < 360; d += 10) {
+      const a = (d - 90) * Math.PI / 180, len = d % 30 === 0 ? 12 : 6;
+      sctx.beginPath(); sctx.moveTo((R - len) * Math.cos(a), (R - len) * Math.sin(a)); sctx.lineTo(R * Math.cos(a), R * Math.sin(a)); sctx.stroke();
+    }
+    sctx.beginPath(); sctx.moveTo(0, -R); sctx.lineTo(0, R); sctx.moveTo(-R, 0); sctx.lineTo(R, 0); sctx.stroke();
+    const fs = Math.max(9, Math.round(S / 52));
+    sctx.font = fs + 'px "Share Tech Mono", Menlo, monospace';
+    sctx.fillStyle = 'rgba(160,240,190,0.85)';
+    sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
+    for (let d = 0; d < 360; d += 30) {
+      const a = (d - 90) * Math.PI / 180, rr = R - 22 - fs * 0.5;
+      sctx.fillText(d === 0 ? 'N' : d === 90 ? 'E' : d === 180 ? 'S' : d === 270 ? 'W' : String(d).padStart(3, '0'), rr * Math.cos(a), rr * Math.sin(a));
+    }
+    sctx.textAlign = 'left';
+    sctx.fillStyle = 'rgba(160,240,190,0.7)';
+    for (let k = 1; k <= 4; k++) { const rr = R * k / 4 - fs * 0.9; sctx.fillText((k * 25) + (k === 4 ? ' km' : ''), -rr * 0.7071 + 3, rr * 0.7071 - 2); }
+    /* sweep */
+    const sa = (sweep - 90) * Math.PI / 180;
+    const g = sctx.createLinearGradient(0, 0, R * Math.cos(sa), R * Math.sin(sa));
+    g.addColorStop(0, 'rgba(200,255,220,0.95)'); g.addColorStop(1, 'rgba(120,255,170,0.75)');
+    sctx.strokeStyle = g; sctx.lineWidth = Math.max(1.5, S / 320);
+    sctx.shadowColor = 'rgba(100,255,160,0.9)'; sctx.shadowBlur = 10;
+    sctx.beginPath(); sctx.moveTo(0, 0); sctx.lineTo(R * Math.cos(sa), R * Math.sin(sa)); sctx.stroke();
+    sctx.shadowBlur = 0;
+    sctx.fillStyle = 'rgba(230,255,240,0.9)';
+    sctx.beginPath(); sctx.arc(0, 0, Math.max(2, S / 200), 0, Math.PI * 2); sctx.fill();
+    sctx.restore();
+  }
+
+  /* ---------- data model ---------- */
+  function st() { return manifest.stations[station]; }
+  function nightsOf() { return st().nights; }
+  function scanOf() { return nightsOf()[night].scans[phase]; }
+  function frameOf() { return scanOf().frame; }
+
+  const bearingCache = new Map();
+  /* bearing of the 20 degree sector with the strongest biological echo, 5 to 80 km */
+  function strongestBearing(f) {
+    if (bearingCache.has(f)) return bearingCache.get(f);
+    let best = -1, bestAz = 0;
+    for (let s = 0; s < 18; s++) {
+      let sum = 0;
+      for (let a = s * 20; a < s * 20 + 20; a++) for (let r = 2; r < 32; r++) {
+        const v = frames[f * BINS + a * RN + r], q = v & 63;
+        if (q > 0 && (v >> 6) === 1) sum += Math.pow(10, qToDbz(q) / 10);
+      }
+      if (sum > best) { best = sum; bestAz = s * 20 + 10; }
+    }
+    bearingCache.set(f, bestAz);
+    return bestAz;
+  }
+
+  function fmtLocal(iso, tz) {
+    const h = (parseInt(iso.slice(11, 13), 10) + tz + 24) % 24;
+    return String(h).padStart(2, '0') + ':' + iso.slice(14, 16);
+  }
+  function hoursAfterSunset(n, s) {
+    const a = Date.parse(n.sunset), b = Date.parse(s.time);
+    return (b - a) / 3.6e6;
+  }
+
+  const readoutEl = document.getElementById('readout');
+  function updateReadout() {
+    const S0 = st(), n = nightsOf()[night], s = scanOf();
+    const tzName = S0.tz === -4 ? 'EDT' : 'CDT';
+    const dh = hoursAfterSunset(n, s);
+    const lines = [
+      `<span class="dim">STN </span>${S0.id} ${S0.name.toUpperCase()}`,
+      `<span class="dim">NGT </span>${String(night + 1).padStart(2, '0')}/${nightsOf().length}  ${n.date}`,
+      `<span class="dim">SCN </span>${s.label.toUpperCase().padEnd(8)} ${s.time.slice(11, 16)}Z ${fmtLocal(s.time, S0.tz)} ${tzName}`,
+      `<span class="dim">SUN </span>${fmtLocal(n.sunset, S0.tz)} ${tzName}  ${dh >= 0 ? '+' : '−'}${Math.abs(dh).toFixed(1)} h`,
+      `<span class="dim">BIO </span>${s.bio.toFixed(1).padStart(5)} dBZ <span class="dim">COV</span> ${Math.round(s.cov * 100).toString().padStart(3)}% <span class="dim">RAIN</span> <span class="${s.wx >= 0.35 ? 'wx' : ''}">${Math.round(s.wx * 100).toString().padStart(3)}%</span>`,
+      `<span class="dim">BRG </span>${String(strongestBearing(s.frame)).padStart(3, '0')}°  <span class="dim">EL</span> ${s.el.toFixed(1)}°`
+    ];
+    readoutEl.innerHTML = lines.join('\n');
+    document.getElementById('lamp-bio').className = 'lamp' + (s.bio >= 8 ? ' on-green' : '');
+    document.getElementById('lamp-wx').className = 'lamp' + (n.weather ? ' on-amber' : '');
+    document.getElementById('night-label').textContent = `${night + 1} / ${nightsOf().length} · ${n.date}`;
+    document.getElementById('rec-station').textContent = S0.id + ' · ' + S0.name.toUpperCase();
+    const rng = document.getElementById('night');
+    if (parseInt(rng.value, 10) !== night) rng.value = night;
+  }
+
+  function setFrame(f, instant) {
+    curFrame = f;
+    if (instant) painted.fill(f);
+    updateReadout();
+    drawStrip();
+    if (audio) audio.onScan(scanOf());
+  }
+
+  function gotoNight(n, instant) {
+    night = Math.max(0, Math.min(nightsOf().length - 1, n));
+    phase = 0;
+    setFrame(frameOf(), instant);
+  }
+
+  function setStation(i) {
+    station = (i + manifest.stations.length) % manifest.stations.length;
+    document.querySelectorAll('#station-labels button').forEach(b => b.setAttribute('aria-pressed', String(parseInt(b.dataset.st, 10) === station)));
+    document.getElementById('knob').style.transform = `rotate(${(station - 1) * 45}deg)`;
+    const rng = document.getElementById('night');
+    rng.max = nightsOf().length - 1;
+    gotoNight(Math.min(night, nightsOf().length - 1), true);
+    drawInset();
+  }
+
+  function advance() {
+    phase++;
+    if (phase > 2) { phase = 0; night = (night + 1) % nightsOf().length; }
+    setFrame(frameOf(), false);
+  }
+
+  /* ---------- strip chart (pen recorder) ---------- */
+  const stripEl = document.getElementById('strip');
+  const stctx = stripEl.getContext('2d');
+  function drawStrip() {
+    const w = stripEl.clientWidth, h = stripEl.clientHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (stripEl.width !== Math.round(w * dpr)) { stripEl.width = Math.round(w * dpr); stripEl.height = Math.round(h * dpr); }
+    stctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const nights = nightsOf(), N = nights.length;
+    const padL = 34, padR = 10, padT = 8, padB = 20;
+    const x0 = padL, x1 = w - padR, y0 = padT, y1 = h - padB;
+    const yOf = v => y1 - (y1 - y0) * Math.max(0, Math.min(1, (v + 10) / 40));
+    const xOf = (ni, ph) => x0 + (x1 - x0) * (ni * 3 + ph + 0.5) / (N * 3);
+    stctx.fillStyle = '#e9e2c8'; stctx.fillRect(0, 0, w, h);
+    /* weather nights */
+    for (let i = 0; i < N; i++) if (nights[i].weather) {
+      const xa = x0 + (x1 - x0) * i / N, xb = x0 + (x1 - x0) * (i + 1) / N;
+      stctx.fillStyle = 'rgba(179,107,58,0.22)'; stctx.fillRect(xa, y0, xb - xa, y1 - y0);
+      stctx.strokeStyle = 'rgba(179,107,58,0.45)'; stctx.lineWidth = 1;
+      stctx.beginPath();
+      for (let x = xa - (y1 - y0); x < xb; x += 6) { stctx.moveTo(x, y1); stctx.lineTo(x + (y1 - y0), y0); }
+      stctx.save(); stctx.beginPath(); stctx.rect(xa, y0, xb - xa, y1 - y0); stctx.clip();
+      stctx.beginPath(); for (let x = xa - (y1 - y0); x < xb; x += 6) { stctx.moveTo(x, y1); stctx.lineTo(x + (y1 - y0), y0); } stctx.stroke();
+      stctx.restore();
+    }
+    /* grid */
+    stctx.strokeStyle = '#c9a46a'; stctx.lineWidth = 0.6;
+    stctx.font = '10px "Share Tech Mono", Menlo, monospace'; stctx.fillStyle = '#5a4a30'; stctx.textAlign = 'right'; stctx.textBaseline = 'middle';
+    for (let v = -10; v <= 30; v += 10) { const y = yOf(v); stctx.beginPath(); stctx.moveTo(x0, y); stctx.lineTo(x1, y); stctx.stroke(); stctx.fillText(String(v), x0 - 4, y); }
+    stctx.textAlign = 'center'; stctx.textBaseline = 'top';
+    const every = w < 600 ? 7 : 4;
+    for (let i = 0; i <= N; i++) {
+      const x = x0 + (x1 - x0) * i / N;
+      stctx.strokeStyle = i % every === 0 ? '#b8905a' : '#dcc9a0'; stctx.lineWidth = i % every === 0 ? 0.8 : 0.5;
+      stctx.beginPath(); stctx.moveTo(x, y0); stctx.lineTo(x, y1); stctx.stroke();
+      if (i % every === 0 && i < N) stctx.fillText(nights[i].date.slice(5), x + (x1 - x0) / N * 1.5, y1 + 4);
+    }
+    /* trace: three scans per night, drawn as one pen line */
+    stctx.strokeStyle = '#1f1d1a'; stctx.lineWidth = 1.4; stctx.lineJoin = 'round';
+    stctx.beginPath();
+    let first = true;
+    for (let i = 0; i < N; i++) for (let p = 0; p < 3; p++) {
+      const x = xOf(i, p), y = yOf(nights[i].scans[p].bio);
+      if (first) { stctx.moveTo(x, y); first = false; } else stctx.lineTo(x, y);
+    }
+    stctx.stroke();
+    /* peak dots */
+    stctx.fillStyle = '#1f1d1a';
+    for (let i = 0; i < N; i++) { stctx.beginPath(); stctx.arc(xOf(i, 2), yOf(nights[i].scans[2].bio), 1.6, 0, Math.PI * 2); stctx.fill(); }
+    /* pen */
+    const xp = xOf(night, phase), yp = yOf(scanOf().bio);
+    stctx.strokeStyle = '#c8321f'; stctx.lineWidth = 1; stctx.beginPath(); stctx.moveTo(xp, y0); stctx.lineTo(xp, y1); stctx.stroke();
+    stctx.fillStyle = '#c8321f'; stctx.beginPath(); stctx.arc(xp, yp, 3.2, 0, Math.PI * 2); stctx.fill();
+    stctx.strokeStyle = '#e9e2c8'; stctx.lineWidth = 1.2; stctx.stroke();
+  }
+
+  /* ---------- inset map ---------- */
+  const US = [[-124.7,48.4],[-122.8,49.0],[-95.2,49.0],[-89.5,48.0],[-84.5,46.5],[-82.5,45.3],[-82.4,43.0],[-83.1,42.0],[-79.0,42.9],[-76.8,43.6],[-74.8,45.0],[-71.5,45.0],[-69.2,47.4],[-67.8,47.1],[-66.9,44.8],[-70.2,43.6],[-70.0,41.7],[-71.9,41.3],[-74.0,40.6],[-74.1,39.5],[-75.0,38.8],[-76.0,37.0],[-75.7,35.3],[-78.5,33.9],[-81.0,32.0],[-81.4,30.4],[-80.1,26.5],[-81.8,24.6],[-82.7,27.8],[-84.0,30.1],[-85.6,30.1],[-88.0,30.4],[-89.5,29.3],[-93.8,29.7],[-97.2,27.8],[-97.2,26.0],[-99.3,26.8],[-101.4,29.8],[-104.5,29.6],[-106.4,31.8],[-108.2,31.3],[-111.0,31.3],[-114.8,32.7],[-117.1,32.5],[-118.5,34.0],[-120.6,34.6],[-122.4,37.8],[-124.1,40.3],[-124.5,42.8],[-123.9,46.2]];
+  function proj(lon, lat) { return [(lon + 125.5) / 60 * 320, 185 - (lat - 23.5) / 27 * 180]; }
+  function drawInset() {
+    const svg = document.getElementById('inset');
+    const path = US.map((p, i) => (i ? 'L' : 'M') + proj(p[0], p[1]).map(v => v.toFixed(1)).join(' ')).join('') + 'Z';
+    let out = `<path d="${path}" fill="rgba(72,255,128,0.06)" stroke="#2f7a45" stroke-width="1"/>`;
+    manifest.stations.forEach((s, i) => {
+      const [x, y] = proj(s.lon, s.lat), on = i === station;
+      out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 11 : 6}" fill="${on ? 'rgba(72,255,128,0.25)' : 'none'}" stroke="${on ? '#48ff80' : '#7fd99a'}" stroke-width="1.2"/>`;
+      out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${on ? '#e6fff0' : '#7fd99a'}"/>`;
+      out += `<text x="${(x + (s.id === 'KDOX' ? -14 : 14)).toFixed(1)}" y="${(y + (s.id === 'KDOX' ? 34 : 9)).toFixed(1)}"font-size="26" fill="${on ? '#e6fff0' : '#b9b9bd'}" font-family="Share Tech Mono, Menlo, monospace">${s.id}</text>`;
+    });
+    svg.innerHTML = out;
+  }
+
+  /* ---------- sound ---------- */
+  function makeAudio(ctx, master) {
+    const out = ctx.createGain(); out.gain.value = 0.9;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; lp.Q.value = 0.5;
+    const conv = ctx.createConvolver();
+    const irLen = Math.floor(ctx.sampleRate * 2.2), ir = ctx.createBuffer(2, irLen, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.6) * 0.5; }
+    conv.buffer = ir;
+    const dry = ctx.createGain(); dry.gain.value = 0.75;
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    out.connect(lp); lp.connect(dry); dry.connect(master); lp.connect(conv); conv.connect(wet); wet.connect(master);
+
+    const nLen = ctx.sampleRate * 2, nb = ctx.createBuffer(1, nLen, ctx.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+    function noiseSrc() { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; s.start(); return s; }
+    /* wind bed */
+    const wind = noiseSrc(), windF = ctx.createBiquadFilter(); windF.type = 'lowpass'; windF.frequency.value = 260; windF.Q.value = 0.7;
+    const windG = ctx.createGain(); windG.gain.value = 0.05; wind.connect(windF); windF.connect(windG); windG.connect(out);
+    const windLfo = ctx.createOscillator(); windLfo.frequency.value = 0.07; const windLfoG = ctx.createGain(); windLfoG.gain.value = 120;
+    windLfo.connect(windLfoG); windLfoG.connect(windF.frequency); windLfo.start();
+    /* cricket shimmer */
+    const cr = noiseSrc(), crF = ctx.createBiquadFilter(); crF.type = 'bandpass'; crF.frequency.value = 3900; crF.Q.value = 9;
+    const crG = ctx.createGain(); crG.gain.value = 0.012; const crPulse = ctx.createGain(); crPulse.gain.value = 0.5;
+    const crLfo = ctx.createOscillator(); crLfo.frequency.value = 5.5; const crLfoG = ctx.createGain(); crLfoG.gain.value = 0.5;
+    crLfo.connect(crLfoG); crLfoG.connect(crPulse.gain); crLfo.start();
+    cr.connect(crF); crF.connect(crPulse); crPulse.connect(crG); crG.connect(out);
+    /* rain texture */
+    const rain = noiseSrc(), rainF = ctx.createBiquadFilter(); rainF.type = 'lowpass'; rainF.frequency.value = 1500;
+    const rainG = ctx.createGain(); rainG.gain.value = 0; rain.connect(rainF); rainF.connect(rainG); rainG.connect(out);
+
+    let rate = 0.5, bearing = 0, chorus = 0;
+    const api = {
+      onScan(s) {
+        const bio = s.bio;
+        rate = 0.15 + 9 * Math.pow(Math.max(0, Math.min(1, (bio + 5) / 28)), 1.5);
+        bearing = strongestBearing(s.frame);
+        chorus = Math.max(0, Math.min(1, s.cov));
+        const rg = 0.14 * Math.max(0, Math.min(1, (s.wx - 0.2) / 0.6));
+        rainG.gain.setTargetAtTime(rg, ctx.currentTime, 0.8);
+        crG.gain.setTargetAtTime(0.008 + 0.012 * chorus, ctx.currentTime, 1.0);
+      },
+      tick(dt) {
+        if (!playing || ctx.state !== 'running') return;
+        if (Math.random() < rate * dt) api.chirp();
+      },
+      chirp() {
+        const t = ctx.currentTime + 0.01;
+        const o = ctx.createOscillator(); o.type = 'sine';
+        const f0 = 1500 + Math.random() * 1700;
+        o.frequency.setValueAtTime(f0, t);
+        o.frequency.exponentialRampToValueAtTime(f0 * (1.25 + Math.random() * 0.3), t + 0.035);
+        o.frequency.exponentialRampToValueAtTime(f0 * 0.8, t + 0.11);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.045 + Math.random() * 0.02, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0008, t + 0.13);
+        const p = ctx.createStereoPanner();
+        const az = bearing + (Math.random() - 0.5) * 70;
+        p.pan.value = Math.max(-1, Math.min(1, Math.sin(az * Math.PI / 180) * 0.85));
+        o.connect(g); g.connect(p); p.connect(out);
+        o.start(t); o.stop(t + 0.15);
+      },
+      whoosh() {
+        if (ctx.state !== 'running') return;
+        const t = ctx.currentTime;
+        const s = noiseSrc();
+        const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.8;
+        f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(1400, t + 0.45);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.09, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
+        s.connect(f); f.connect(g); g.connect(out); s.stop(t + 0.65);
+      }
+    };
+    return api;
+  }
+
+  /* ---------- loop ---------- */
+  function loop(t) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.1, (t - lastT) / 1000 || 0); lastT = t;
+    if (frames && playing) {
+      const before = Math.floor(sweep);
+      sweep += 360 * dt / ROT_SEC;
+      let wrapped = false;
+      if (sweep >= 360) { sweep -= 360; wrapped = true; }
+      const after = Math.floor(sweep);
+      if (wrapped) {
+        for (let a = before; a < AZ; a++) painted[a] = curFrame;
+        advance();
+        if (audio) audio.whoosh();
+        for (let a = 0; a <= after; a++) painted[a] = curFrame;
+      } else {
+        for (let a = before; a <= after; a++) painted[a] = curFrame;
+      }
+    }
+    if (frames) drawScope();
+    if (audio) audio.tick(dt);
+  }
+
+  /* ---------- controls ---------- */
+  function bindControls() {
+    document.getElementById('knob').addEventListener('click', () => setStation(station + 1));
+    document.getElementById('knob').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStation(station + 1); } });
+    document.querySelectorAll('#station-labels button').forEach(b => b.addEventListener('click', () => setStation(parseInt(b.dataset.st, 10))));
+    const run = document.getElementById('run');
+    function setPlaying(v) {
+      playing = v; run.setAttribute('aria-pressed', String(v));
+      document.getElementById('run-label').textContent = v ? 'RUN' : 'HOLD';
+      document.getElementById('lamp-run').className = 'lamp' + (v ? ' on-green' : '');
+    }
+    run.addEventListener('click', () => setPlaying(!playing));
+    setPlaying(true);
+    const rng = document.getElementById('night');
+    rng.addEventListener('input', () => gotoNight(parseInt(rng.value, 10), true));
+    document.getElementById('prev').addEventListener('click', () => gotoNight(night - 1, true));
+    document.getElementById('next').addEventListener('click', () => gotoNight(night + 1, true));
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key === 'ArrowLeft') gotoNight(night - 1, true);
+      else if (e.key === 'ArrowRight') gotoNight(night + 1, true);
+      else if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+    });
+    window.addEventListener('resize', () => { sizeScope(); drawStrip(); });
+  }
+
+  /* ---------- boot ---------- */
+  const ready = Promise.all([
+    fetch('data/manifest.json').then(r => r.json()),
+    fetch('data/frames.bin').then(r => r.arrayBuffer())
+  ]).then(([m, buf]) => {
+    manifest = m; frames = new Uint8Array(buf);
+  });
+
+  Gallery.mount({
+    slug: 'bird-radar',
+    title: 'Birds on the Radar',
+    blurb: 'Weather radar sees birds. Each spring night, millions take off after sunset and bloom as a ring of green echo. Chirps follow the migration index, panned toward the strongest echo.',
+    onStart(ctx, master) {
+      ready.then(() => {
+        sizeScope();
+        bindControls();
+        if (ctx && master) audio = makeAudio(ctx, master);
+        setStation(0);
+        gotoNight(0, true);
+        requestAnimationFrame(loop);
+      }).catch(err => { readoutEl.textContent = 'DATA LOAD FAILED\n' + err; });
+    }
+  });
+})();
+</script>
+</body>
+</html>
