@@ -29,3 +29,7 @@ Then open `http://localhost:8000/`.
 ```
 
 Each room README documents the source, the sampling, and the sound mapping.
+
+## Hosting
+
+The gallery is published as a private claude.ai artifact at https://claude.ai/artifact/SX2cR2YLcmjGtH347WwLuz . That host serves only standard web file types, so the publish sends each binary data file as a base64 text copy named `<file>.b64.txt`. The shared helper in `shared/room.js` loads that copy when the raw binary file is not available. Local serving uses the raw binary files.
