@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Complaint Wall</title>
+<meta name="description" content="Millions of consumer complaints as a heatmap wall that evolves month by month.">
+<style>
+  /* Anton: a condensed grotesque for the brutalist headline type. Pinned on jsdelivr. */
+  @font-face {
+    font-family: 'Anton';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.6/files/anton-latin-400-normal.woff2) format('woff2');
+  }
+  :root {
+    --concrete: #2b2b2b;
+    --concrete-2: #3a3a3a;
+    --slab: #161616;
+    --ink: #000;
+    --paper: #f1f1f1;
+    --acid: #e6ff00;
+    --dim: #8a8a8a;
+    --head: 'Anton', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    --header-h: 96px;
+    --strip-w: 300px;
+    --controls-h: 186px;
+  }
+  * { box-sizing: border-box; border-radius: 0 !important; }
+  html, body { margin: 0; height: 100%; background: var(--concrete); color: var(--paper); font-family: var(--head); overflow-x: hidden; }
+  body::before {
+    /* concrete grain */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .18;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.6 0 0 0 0 0.6 0 0 0 1 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+  #app { position: relative; z-index: 1; display: grid; height: 100vh; min-height: 560px;
+    grid-template-columns: 1fr var(--strip-w);
+    grid-template-rows: var(--header-h) 1fr var(--controls-h);
+    grid-template-areas: "head head" "wall strip" "ctl ctl"; }
+
+  /* ---- header ---- */
+  header { grid-area: head; display: flex; align-items: stretch; background: var(--slab); border-bottom: 6px solid var(--ink); overflow: hidden; }
+  header h1 { margin: 0; padding: 0 18px; font-size: 64px; line-height: var(--header-h); letter-spacing: 2px; text-transform: uppercase; color: var(--acid); white-space: nowrap; }
+  header .month { margin-left: auto; padding: 0 18px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; font-family: var(--mono); font-weight: 700; font-size: 54px; line-height: 1; color: var(--paper); border-left: 6px solid var(--ink); background: var(--concrete-2); min-width: 300px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  header .month small { display: block; font-size: 12px; line-height: 1; margin-bottom: 8px; color: var(--acid); letter-spacing: 1px; font-weight: 400; }
+
+  /* ---- wall ---- */
+  #wall { grid-area: wall; position: relative; overflow: hidden; background: var(--concrete); border-right: 6px solid var(--ink); }
+  #wall canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  /* ---- strip ---- */
+  aside { grid-area: strip; background: var(--slab); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  aside h2 { margin: 0; padding: 10px 12px 6px; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; background: var(--acid); color: var(--ink); border-bottom: 4px solid var(--ink); }
+  aside .list { padding: 8px 12px; font-family: var(--mono); font-size: 12px; overflow: hidden; flex: 1 1 auto; min-height: 0; }
+  aside .row { display: grid; grid-template-columns: 1fr 58px; gap: 8px; align-items: center; padding: 3px 0; border-bottom: 1px solid #2f2f2f; }
+  aside .row > div:first-child { min-width: 0; }
+  aside .row .lab { font-family: var(--head); font-size: 13px; letter-spacing: .5px; text-transform: uppercase; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  aside .row .bar { height: 6px; background: var(--acid); margin-top: 3px; }
+  aside .row .num { text-align: right; color: var(--paper); font-variant-numeric: tabular-nums; }
+  aside .spikes { padding: 8px 12px; border-top: 6px solid var(--ink); background: #0d0d0d; font-family: var(--mono); font-size: 12px; min-height: 110px; }
+  aside .spikes h3 { margin: 0 0 4px; font-family: var(--head); font-size: 18px; color: var(--acid); letter-spacing: 1px; }
+  aside .spikes .sp { color: var(--paper); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  aside .spikes .sp b { color: var(--acid); font-weight: 400; }
+  aside .event { padding: 8px 12px; border-top: 6px solid var(--ink); background: var(--concrete-2); font-size: 14px; letter-spacing: .5px; text-transform: uppercase; line-height: 1.2; min-height: 52px; }
+  aside .event span { font-family: var(--mono); color: var(--acid); font-size: 12px; }
+  aside .hover { padding: 8px 12px; border-top: 6px solid var(--ink); font-family: var(--mono); font-size: 12px; min-height: 64px; color: var(--paper); line-height: 1.35; }
+  aside .hover b { color: var(--acid); font-weight: 400; }
+
+  /* ---- controls ---- */
+  #ctl { grid-area: ctl; background: var(--slab); border-top: 6px solid var(--ink); display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto; grid-template-areas: "play scrub speed" "mode mode legend" "cap cap cap"; gap: 8px 10px; padding: 8px 12px; align-items: center; overflow: hidden; }
+  #ctl .play { grid-area: play; } #ctl .scrubwrap { grid-area: scrub; } #ctl .speed { grid-area: speed; } #modeGroup { grid-area: mode; flex-wrap: wrap; } .legend { grid-area: legend; justify-self: end; } .caption { grid-area: cap; padding-left: 300px; }
+  .btn { font-family: var(--head); font-size: 20px; letter-spacing: 1px; text-transform: uppercase; background: #d9d9d9; color: var(--ink); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 4px 14px; cursor: pointer; line-height: 1.1; user-select: none; }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+  .btn.on { background: var(--acid); }
+  .btn.small { font-size: 15px; padding: 3px 10px; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .group { display: inline-flex; gap: 6px; align-items: center; }
+  .group .lbl { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-right: 2px; }
+  select.btn { appearance: none; -webkit-appearance: none; }
+  #scrub { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: #000; border: 3px solid var(--ink); outline: 0; margin: 0; }
+  #scrub::-webkit-slider-runnable-track { height: 20px; background: linear-gradient(90deg, var(--acid) var(--p, 0%), #3a3a3a var(--p, 0%)); }
+  #scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 20px; background: #fff; border: 3px solid var(--ink); }
+  #scrub::-moz-range-track { height: 20px; background: #3a3a3a; }
+  #scrub::-moz-range-progress { height: 20px; background: var(--acid); }
+  #scrub::-moz-range-thumb { width: 20px; height: 14px; background: #fff; border: 3px solid var(--ink); }
+  .legend { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--paper); white-space: nowrap; }
+  .legend .ramp { width: 120px; height: 14px; border: 2px solid var(--ink); background: linear-gradient(90deg, #1a1a1a, #e6ff00); }
+  .legend .glitch { display: inline-block; width: 14px; height: 14px; background: var(--acid); border: 2px solid var(--ink); position: relative; }
+  .legend .glitch::after { content: ""; position: absolute; left: 3px; top: 4px; width: 12px; height: 4px; background: var(--ink); }
+  .caption { font-family: var(--mono); font-size: 11px; line-height: 1.3; color: #cfcfcf; overflow: hidden; }
+  .caption a { color: var(--acid); }
+  .caption b { color: var(--paper); font-weight: 700; }
+  .caption .srcline { color: var(--dim); }
+
+  /* ---- phone ---- */
+  @media (max-width: 760px) {
+    :root { --header-h: 74px; }
+    #app { height: auto; min-height: 100vh; grid-template-columns: 1fr; grid-template-rows: var(--header-h) auto auto auto; grid-template-areas: "head" "wall" "ctl" "strip"; }
+    header h1 { font-size: 23px; padding: 0 10px; letter-spacing: 0; flex: 1 1 auto; overflow: hidden; }
+    header .month { font-size: 24px; padding: 0 10px; min-width: 0; border-left-width: 4px; }
+    header .month small { display: none; }
+    #wall { height: 540px; border-right: 0; border-bottom: 6px solid var(--ink); }
+    aside { min-height: 420px; }
+    aside .list { font-size: 11px; }
+    #ctl { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "play" "scrub" "speed" "mode" "legend" "cap"; padding: 8px 10px; border-top: 0; border-bottom: 6px solid var(--ink); }
+    .legend { justify-self: start; } .caption { padding-left: 0; }
+    body { padding-bottom: 64px; }
+    .btn { font-size: 15px; padding: 3px 10px; box-shadow: 3px 3px 0 var(--ink); }
+    .btn.small { font-size: 13px; padding: 2px 8px; }
+    .group { flex-wrap: wrap; }
+    .caption { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>The Complaint Wall</h1>
+    <div class="month"><small id="monthNote">LOADING</small><span id="monthText">----·--</span></div>
+  </header>
+
+  <div id="wall"><canvas id="cv"></canvas></div>
+
+  <aside>
+    <h2 id="stripTitle">This month</h2>
+    <div class="list" id="stripList"></div>
+    <div class="spikes"><h3 id="spikeTitle">Spiking now</h3><div id="spikeList"></div></div>
+    <div class="event" id="eventBox"></div>
+    <div class="hover" id="hoverBox">HOVER A CELL FOR THE COUNT.</div>
+  </aside>
+
+  <div id="ctl">
+    <div class="group play">
+      <button class="btn on" id="srcNhtsa">NHTSA Vehicles</button>
+      <button class="btn" id="srcCfpb">CFPB Finance</button>
+      <button class="btn" id="play">Pause</button>
+      <button class="btn small" id="stepBack" title="Previous month">&lt;</button>
+      <button class="btn small" id="stepFwd" title="Next month">&gt;</button>
+    </div>
+    <div class="scrubwrap"><input id="scrub" type="range" min="0" max="1" value="0" step="1" aria-label="Month scrubber"></div>
+    <div class="group speed">
+      <span class="lbl">SPEED</span>
+      <button class="btn small" data-speed="800">Slow</button>
+      <button class="btn small on" data-speed="340">Mid</button>
+      <button class="btn small" data-speed="130">Fast</button>
+    </div>
+    <div class="group" id="modeGroup">
+      <span class="lbl">SCALE</span>
+      <button class="btn small on" data-scale="VOLUME">Row peak</button>
+      <button class="btn small" data-scale="SHARE">Row share</button>
+      <span class="lbl" id="rowsLbl">ROWS</span>
+      <button class="btn small on" data-rows="COMPANY" id="rowsCompany">Company</button>
+      <button class="btn small" data-rows="PRODUCT" id="rowsProduct">Product</button>
+      <span class="lbl" id="viewLbl">VIEW</span>
+      <button class="btn small on" data-view="MONTH" id="viewMonth">By month</button>
+      <button class="btn small" data-view="YEAR" id="viewYear">By model year</button>
+      <select class="btn small" id="compSel" aria-label="Component"></select>
+    </div>
+    <div class="legend">
+      <span>0</span><span class="ramp"></span><span id="legendMax">ROW PEAK</span>
+      <span class="glitch"></span><span>SPIKE &gt;2 SD</span>
+    </div>
+    <div class="caption" id="caption"></div>
+  </div>
+</div>
+
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const ACID = [0xe6, 0xff, 0x00];
+  const DARK = [0x1a, 0x1a, 0x1a];
+  const WINDOW = 24;        // trailing months for the spike test
+  const MIN_COUNT = 15;     // a spike needs at least this many complaints
+
+  const state = {
+    src: 'nhtsa', rows: 'MAKE', scale: 'VOLUME', view: 'MONTH', comp: 'ALL',
+    mi: 0, playing: true, period: 340, lastStep: 0, hover: null,
+  };
+  const data = {};          // raw JSON per source
+  const prepared = {};      // derived arrays per source + row set
+  let audio = null, master = null, sound = null;
+  let cur = null;           // the active prepared set
+
+  // ------------------------------------------------------------ data ----
+  function prepare(src, rowsKey) {
+    const key = src + ':' + rowsKey;
+    if (prepared[key]) return prepared[key];
+    const d = data[src];
+    const rs = d.rowSets[rowsKey];
+    const M = d.months.length, R = rs.labels.length, C = d.cols.length;
+    const cells = Int32Array.from(rs.cells);
+    const rowMax = new Float32Array(R);
+    const rowTot = new Float32Array(M * R);
+    const colTot = new Float32Array(M * C);
+    for (let m = 0; m < M; m++) for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      const v = cells[(m * R + r) * C + c];
+      if (v > rowMax[r]) rowMax[r] = v;
+      rowTot[m * R + r] += v;
+      colTot[m * C + c] += v;
+    }
+    // Spike test: a cell is a spike when its count is more than 2 SD above
+    // the mean of its own previous 24 months, is at least MIN_COUNT, and is
+    // at least 1.5 times that mean.
+    const spike = new Uint8Array(M * R * C);
+    const z = new Float32Array(M * R * C);
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      let s = 0, s2 = 0;
+      for (let m = 0; m < M; m++) {
+        const i = (m * R + r) * C + c, v = cells[i];
+        if (m >= 12) {
+          const n = Math.min(m, WINDOW), mean = s / n, sd = Math.sqrt(Math.max(s2 / n - mean * mean, 0));
+          const zz = sd > 0 ? (v - mean) / sd : (v > mean ? 9 : 0);
+          z[i] = zz;
+          if (v >= MIN_COUNT && zz > 2 && v > mean * 1.5) spike[i] = 1;
+        }
+        s += v; s2 += v * v;
+        if (m >= WINDOW) { const o = cells[((m - WINDOW) * R + r) * C + c]; s -= o; s2 -= o * o; }
+      }
+    }
+    let maxTot = 0; for (const t of d.monthTotals) maxTot = Math.max(maxTot, t);
+    prepared[key] = { d, rs, M, R, C, cells, rowMax, rowTot, colTot, spike, z, maxTot };
+    return prepared[key];
+  }
+
+  function yearPlane(d, comp) {
+    const planes = d.yearPlanes, R = d.rowSets.MAKE.labels.length, Y = d.modelYears.length;
+    const p = planes.indexOf(comp);
+    const base = p * R * Y;
+    const cells = new Int32Array(R * Y);
+    const rowMax = new Float32Array(R);
+    for (let r = 0; r < R; r++) for (let y = 0; y < Y; y++) {
+      const v = d.yearGrid[base + r * Y + y]; cells[r * Y + y] = v; if (v > rowMax[r]) rowMax[r] = v;
+    }
+    return { cells, rowMax, R, C: Y, cols: d.modelYears.map(String), rows: d.rowSets.MAKE.labels };
+  }
+
+  // --------------------------------------------------------- drawing ----
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let W = 0, H = 0, DPR = 1, geo = null;
+
+  function resize() {
+    const box = $('wall').getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(1, Math.floor(box.width)); H = Math.max(1, Math.floor(box.height));
+    cv.width = Math.floor(W * DPR); cv.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    geo = null;
+  }
+  window.addEventListener('resize', resize);
+
+  function layout(R, C) {
+    const phone = W < 520;
+    const left = phone ? 74 : Math.min(190, Math.max(120, W * 0.17));
+    const top = phone ? 84 : 118;
+    const pad = 4;
+    const cw = (W - left - pad) / C, ch = (H - top - pad) / R;
+    return { left, top, cw, ch, phone };
+  }
+
+  function color(v) {
+    const t = Math.sqrt(Math.max(0, Math.min(1, v)));
+    return 'rgb(' + Math.round(DARK[0] + (ACID[0] - DARK[0]) * t) + ',' + Math.round(DARK[1] + (ACID[1] - DARK[1]) * t) + ',' + Math.round(DARK[2] + (ACID[2] - DARK[2]) * t) + ')';
+  }
+
+  function cellValue(p, m, r, c) {
+    const v = p.cells[(m * p.R + r) * p.C + c];
+    if (state.scale === 'SHARE') { const t = p.rowTot[m * p.R + r]; return t > 0 ? v / t : 0; }
+    return p.rowMax[r] > 0 ? v / p.rowMax[r] : 0;
+  }
+
+  function draw(now) {
+    ctx.fillStyle = '#2b2b2b'; ctx.fillRect(0, 0, W, H);
+    if (!cur) return;
+    const yearMode = state.view === 'YEAR' && state.src === 'nhtsa';
+    let R, C, rows, cols, val, spk;
+    if (yearMode) {
+      const yp = cur.yp;
+      R = yp.R; C = yp.C; rows = yp.rows; cols = yp.cols;
+      val = (r, c) => { const v = yp.cells[r * C + c]; if (state.scale === 'SHARE') { let t = 0; for (let k = 0; k < C; k++) t += yp.cells[r * C + k]; return t ? v / t : 0; } return yp.rowMax[r] ? v / yp.rowMax[r] : 0; };
+      spk = () => 0;
+    } else {
+      R = cur.R; C = cur.C; rows = cur.rs.labels; cols = cur.d.cols;
+      const m = state.mi;
+      val = (r, c) => cellValue(cur, m, r, c);
+      spk = (r, c) => cur.spike[(m * R + r) * C + c];
+    }
+    if (!geo || geo.R !== R || geo.C !== C) { geo = layout(R, C); geo.R = R; geo.C = C; }
+    const g = geo, gap = g.phone ? 1 : 2;
+    // cells
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      const x = g.left + c * g.cw, y = g.top + r * g.ch;
+      const v = val(r, c);
+      ctx.fillStyle = color(v);
+      if (spk(r, c)) {
+        // glitch: three slices with random horizontal offsets and a flicker
+        const flick = Math.sin(now / 37 + r * 3 + c * 7) > -0.2;
+        const slices = 3, sh = (g.ch - gap) / slices;
+        for (let s = 0; s < slices; s++) {
+          const off = ((Math.random() * 2 - 1) * Math.min(8, g.cw * 0.25)) | 0;
+          ctx.fillStyle = flick ? '#e6ff00' : '#ffffff';
+          ctx.fillRect(x + off, y + s * sh, g.cw - gap, sh - 1);
+          if (s === 1) { ctx.fillStyle = '#000'; ctx.fillRect(x + off + 2, y + s * sh + sh * 0.3, (g.cw - gap) * 0.6, Math.max(1, sh * 0.25)); }
+        }
+      } else {
+        ctx.fillRect(x, y, g.cw - gap, g.ch - gap);
+      }
+    }
+    // hover highlight
+    if (state.hover && state.hover.r < R && state.hover.c < C) {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.strokeRect(g.left + state.hover.c * g.cw + 1, g.top + state.hover.r * g.ch + 1, g.cw - gap - 2, g.ch - gap - 2);
+    }
+    // row labels
+    ctx.fillStyle = '#f1f1f1'; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+    const rf = Math.min(g.phone ? 9 : 13, g.ch * 0.8);
+    ctx.font = rf + 'px Anton, Impact, "Arial Narrow", sans-serif';
+    for (let r = 0; r < R; r++) ctx.fillText(fit(rows[r], g.left - 10), g.left - 6, g.top + r * g.ch + g.ch / 2);
+    // column labels, rotated
+    ctx.textAlign = 'left';
+    const cf = Math.min(g.phone ? 8 : 12, g.cw * 0.75);
+    ctx.font = cf + 'px Anton, Impact, "Arial Narrow", sans-serif';
+    const every = yearMode ? (g.cw < 16 ? 5 : (g.cw < 26 ? 2 : 1)) : 1;
+    for (let c = 0; c < C; c++) {
+      if (c % every !== 0 && c !== C - 1) continue;
+      const t = fit(cols[c], g.top - 12);
+      ctx.save();
+      ctx.translate(g.left + c * g.cw + g.cw / 2, g.top - 6);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(t, 0, 0);
+      ctx.restore();
+    }
+    // corner label
+    ctx.fillStyle = '#e6ff00'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.font = (g.phone ? 9 : 11) + 'px ' + 'ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillText(yearMode ? 'MAKE ↓  MODEL YEAR →' : (rowLabelName() + ' ↓  ' + colLabelName() + ' →'), 6, 6);
+  }
+
+  // Shorten a label until it fits the given pixel width in the current font.
+  function fit(t, width) {
+    if (ctx.measureText(t).width <= width) return t;
+    let n = t.length;
+    while (n > 2 && ctx.measureText(t.slice(0, n) + '.').width > width) n--;
+    return t.slice(0, n) + '.';
+  }
+
+  function rowLabelName() { return state.src === 'nhtsa' ? 'MAKE' : state.rows; }
+  function colLabelName() { return state.src === 'nhtsa' ? 'COMPONENT' : 'ISSUE'; }
+
+  // ------------------------------------------------------------ strip ----
+  function fmt(n) { return n.toLocaleString('en-US'); }
+
+  function updateStrip() {
+    if (!cur) return;
+    const d = cur.d, m = state.mi, yearMode = state.view === 'YEAR' && state.src === 'nhtsa';
+    const list = $('stripList');
+    let html = '';
+    if (yearMode) {
+      $('stripTitle').textContent = 'All months, ' + (state.comp === 'ALL' ? 'all components' : state.comp.toLowerCase());
+      const yp = cur.yp; const tot = []; for (let r = 0; r < yp.R; r++) { let t = 0; for (let c = 0; c < yp.C; c++) t += yp.cells[r * yp.C + c]; tot.push([t, r]); }
+      tot.sort((a, b) => b[0] - a[0]); const mx = tot[0][0] || 1;
+      for (const [t, r] of tot.slice(0, 12)) html += row(yp.rows[r], t, t / mx);
+    } else if (state.src === 'nhtsa') {
+      $('stripTitle').textContent = 'Narrative keywords';
+      const L = d.lexicon.length, base = m * L, u = d.uniqueComplaints[m] || 1;
+      const arr = []; for (let k = 0; k < L; k++) arr.push([d.keywords[base + k], k]);
+      arr.sort((a, b) => b[0] - a[0]);
+      for (const [n, k] of arr.slice(0, 9)) html += row(d.lexicon[k][0], n, n / u, Math.round(100 * n / u) + '%');
+    } else {
+      $('stripTitle').textContent = 'Failure modes';
+      const mc = d.monthClusters[m] || []; const mx = mc.length ? mc[0][1] : 1;
+      for (const [k, n] of mc) html += row(d.clusterNames[k], n, n / mx);
+    }
+    list.innerHTML = html || '<div class="row"><div class="lab">NO RECORDS</div></div>';
+
+    // spikes
+    const sp = [];
+    if (!yearMode) for (let r = 0; r < cur.R; r++) for (let c = 0; c < cur.C; c++) {
+      const i = (m * cur.R + r) * cur.C + c; if (cur.spike[i]) sp.push([cur.z[i], r, c, cur.cells[i]]);
+    }
+    sp.sort((a, b) => b[0] - a[0]);
+    $('spikeTitle').textContent = yearMode ? 'Spikes need the month view' : ('Spiking now: ' + sp.length);
+    $('spikeList').innerHTML = sp.slice(0, 5).map(s => '<div class="sp"><b>' + s[0].toFixed(1) + 'SD</b> ' + cur.rs.labels[s[1]] + ' / ' + cur.d.cols[s[2]] + ' (' + fmt(s[3]) + ')</div>').join('');
+
+    // event
+    let ev = null, ago = 0;
+    if (!yearMode) for (const e of d.events) { const i = d.months.indexOf(e[0]); if (i >= 0 && i <= m && m - i <= 18) { ev = e; ago = m - i; } }
+    $('eventBox').innerHTML = ev ? ('<span>' + ev[0] + (ago ? ' (' + ago + ' MO AGO)' : ' NOW') + '</span><br>' + ev[1]) : '<span>REFERENCE EVENTS</span><br>None in the last 18 months';
+    cur.lastSpikes = sp;
+  }
+
+  function row(lab, n, frac, extra) {
+    return '<div class="row"><div><div class="lab">' + lab + '</div><div class="bar" style="width:' + Math.round(100 * Math.max(0, Math.min(1, frac))) + '%"></div></div><div class="num">' + (extra || fmt(n)) + '</div></div>';
+  }
+
+  function updateMonth() {
+    if (!cur) return;
+    const yearMode = state.view === 'YEAR' && state.src === 'nhtsa';
+    if (yearMode) { $('monthText').textContent = 'ALL'; $('monthNote').textContent = cur.d.months[0] + ' TO ' + cur.d.months[cur.M - 1]; }
+    else {
+      const mo = cur.d.months[state.mi];
+      $('monthText').textContent = mo.replace('-', '·');
+      $('monthNote').textContent = fmt(cur.d.monthTotals[state.mi]) + ' ' + cur.d.unit.toUpperCase();
+    }
+    const sc = $('scrub'); sc.value = state.mi; sc.style.setProperty('--p', (100 * state.mi / Math.max(1, cur.M - 1)) + '%');
+  }
+
+  function updateHover() {
+    const h = state.hover, box = $('hoverBox');
+    if (!h || !cur) { box.innerHTML = 'HOVER A CELL FOR THE COUNT.'; return; }
+    const yearMode = state.view === 'YEAR' && state.src === 'nhtsa';
+    if (yearMode) {
+      const yp = cur.yp; if (h.r >= yp.R || h.c >= yp.C) return;
+      box.innerHTML = '<b>' + yp.rows[h.r] + '</b> / MODEL YEAR ' + yp.cols[h.c] + '<br>' + fmt(yp.cells[h.r * yp.C + h.c]) + ' ' + cur.d.unit;
+      return;
+    }
+    if (h.r >= cur.R || h.c >= cur.C) return;
+    const i = (state.mi * cur.R + h.r) * cur.C + h.c, v = cur.cells[i], t = cur.rowTot[state.mi * cur.R + h.r];
+    box.innerHTML = '<b>' + cur.rs.labels[h.r] + '</b> / ' + cur.d.cols[h.c] + '<br>' + fmt(v) + ' in ' + cur.d.months[state.mi] + ' = ' + (t ? Math.round(100 * v / t) : 0) + '% of row, ' + (state.mi >= 12 ? cur.z[i].toFixed(1) + ' SD vs trailing 24 mo' : 'no trailing window yet');
+  }
+
+  // ------------------------------------------------------------ sound ----
+  function makeSound(ac, out) {
+    const bus = ac.createGain(); bus.gain.value = 1;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; lp.Q.value = 0.5;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.25;
+    const wet = ac.createGain(); wet.gain.value = 0.28;
+    const conv = ac.createConvolver();
+    // generated impulse response: 1.6 s of decaying noise, a hard concrete room
+    const len = Math.floor(ac.sampleRate * 1.6), ir = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const b = ir.getChannelData(ch); for (let i = 0; i < len; i++) b[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 400 ? i / 400 : 1); }
+    conv.buffer = ir;
+    bus.connect(lp); bus.connect(conv); conv.connect(wet); wet.connect(lp);
+    lp.connect(comp); comp.connect(out);
+    // short noise buffer for the clicks
+    const nlen = Math.floor(ac.sampleRate * 0.06), nb = ac.createBuffer(1, nlen, ac.sampleRate);
+    const nd = nb.getChannelData(0); for (let i = 0; i < nlen; i++) nd[i] = Math.random() * 2 - 1;
+    let nextClick = ac.currentTime + 0.1, lastAlarm = 0;
+
+    function click(t, col, C, level) {
+      const src = ac.createBufferSource(); src.buffer = nb;
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 7;
+      bp.frequency.value = 500 * Math.pow(2, 2.6 * (col / Math.max(1, C - 1))) * (0.9 + Math.random() * 0.2);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(level, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+      const pan = ac.createStereoPanner(); pan.pan.value = (col / Math.max(1, C - 1)) * 1.6 - 0.8;
+      src.connect(bp); bp.connect(g); g.connect(pan); pan.connect(bus);
+      src.start(t); src.stop(t + 0.06);
+    }
+    function alarm(t, col, C, rowFrac) {
+      const f = 55 * Math.pow(2, 1 - rowFrac);                  // 55 to 110 Hz, lower rows are deeper
+      const lpf = ac.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 320; lpf.Q.value = 2;
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11, t + 0.14); g.gain.setValueAtTime(0.11, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      const pan = ac.createStereoPanner(); pan.pan.value = (col / Math.max(1, C - 1)) * 1.6 - 0.8;
+      for (const det of [1, 1.011]) { const o = ac.createOscillator(); o.type = 'square'; o.frequency.value = f * det; o.connect(lpf); o.start(t); o.stop(t + 1.4); }
+      lpf.connect(g); g.connect(pan); pan.connect(bus);
+    }
+    return {
+      // called every animation frame; schedules clicks a little ahead of time
+      tick(rate, pickCol, C) {
+        const now = ac.currentTime;
+        if (rate <= 0) { nextClick = Math.max(nextClick, now + 0.05); return; }
+        while (nextClick < now + 0.12) {
+          click(nextClick, pickCol(), C, 0.18 + Math.random() * 0.14);
+          nextClick += (1 / rate) * (0.7 + Math.random() * 0.6);
+        }
+      },
+      spikes(list, R, C) {
+        const now = ac.currentTime; if (now - lastAlarm < 0.25) return; lastAlarm = now;
+        list.slice(0, 2).forEach((s, i) => alarm(now + i * 0.09, s[2], C, s[1] / Math.max(1, R - 1)));
+      },
+    };
+  }
+
+  // ------------------------------------------------------------- loop ----
+  function stepTo(mi, fromUser) {
+    if (!cur) return;
+    state.mi = Math.max(0, Math.min(cur.M - 1, mi));
+    updateMonth(); updateStrip(); updateHover();
+    if (sound && cur.lastSpikes && cur.lastSpikes.length && !(state.view === 'YEAR' && state.src === 'nhtsa')) sound.spikes(cur.lastSpikes, cur.R, cur.C);
+  }
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const yearMode = state.view === 'YEAR' && state.src === 'nhtsa';
+    if (state.playing && cur && !yearMode && now - state.lastStep > state.period) {
+      state.lastStep = now;
+      stepTo(state.mi + 1 >= cur.M ? 0 : state.mi + 1);
+    }
+    draw(now);
+    if (sound && cur) {
+      let rate = 0;
+      if (state.playing && !yearMode) {
+        const tot = cur.d.monthTotals[state.mi];
+        rate = 2 + 38 * Math.sqrt(tot / cur.maxTot) * (340 / state.period);
+        rate = Math.min(rate, 60);
+      }
+      const m = state.mi, C = cur.C;
+      // pick a column with probability proportional to its complaints this month
+      const pick = () => {
+        let t = 0; for (let c = 0; c < C; c++) t += cur.colTot[m * C + c];
+        let x = Math.random() * t; for (let c = 0; c < C; c++) { x -= cur.colTot[m * C + c]; if (x <= 0) return c; }
+        return C - 1;
+      };
+      sound.tick(rate, pick, C);
+    }
+  }
+
+  // ---------------------------------------------------------- controls --
+  function setSource(src) {
+    state.src = src;
+    state.rows = src === 'nhtsa' ? 'MAKE' : state.rows === 'MAKE' ? 'COMPANY' : state.rows;
+    if (src === 'cfpb') state.view = 'MONTH';
+    const frac = cur ? state.mi / Math.max(1, cur.M - 1) : 0;
+    cur = prepare(src, state.rows);
+    if (src === 'nhtsa') cur.yp = yearPlane(cur.d, state.comp);
+    $('scrub').max = cur.M - 1;
+    state.mi = Math.round(frac * (cur.M - 1));
+    $('srcNhtsa').classList.toggle('on', src === 'nhtsa');
+    $('srcCfpb').classList.toggle('on', src === 'cfpb');
+    const cf = src === 'cfpb';
+    for (const id of ['rowsLbl', 'rowsCompany', 'rowsProduct']) $(id).style.display = cf ? '' : 'none';
+    for (const id of ['viewLbl', 'viewMonth', 'viewYear', 'compSel']) $(id).style.display = cf ? 'none' : '';
+    $('viewMonth').classList.toggle('on', state.view === 'MONTH');
+    $('viewYear').classList.toggle('on', state.view === 'YEAR');
+    $('compSel').style.display = (!cf && state.view === 'YEAR') ? '' : 'none';
+    const ym = !cf && state.view === 'YEAR';
+    for (const id of ['play', 'stepBack', 'stepFwd', 'scrub']) $(id).disabled = ym;
+    geo = null;
+    updateCaption();
+    stepTo(state.mi);
+  }
+
+  function updateCaption() {
+    const d = cur.d, nh = state.src === 'nhtsa';
+    const scaleTxt = state.scale === 'VOLUME' ? 'relative to that row’s own peak month (square-root scale)' : 'as a share of that row’s complaints in the month';
+    const what = nh
+      ? '<b>Rows are vehicle makes, columns are the component the owner blamed.</b> Each cell is the number of NHTSA complaint rows in the shown month, ' + scaleTxt + '.'
+      : '<b>Rows are ' + (state.rows === 'COMPANY' ? 'the 25 most complained-about companies' : 'financial products') + ', columns are the issue the consumer chose.</b> Each cell is the number of CFPB complaints in the shown month, ' + scaleTxt + '.';
+    const view = (nh && state.view === 'YEAR') ? ' <b>Model-year view:</b> columns are model years, all months summed, one component at a time.' : '';
+    const strip = nh ? ' The side strip counts failure-mode phrases found in the complaint narratives.' : ' The side strip lists the sub-issues consumers selected most this month.';
+    const glitch = ' A cell glitches when it rises more than 2 standard deviations above its own trailing 24-month mean.';
+    const snd = ' <b>Sound:</b> industrial clicks tick faster when more complaints arrive, each click panned to its column. A low detuned alarm sounds when a cell spikes, deeper for lower rows.';
+    $('caption').innerHTML = what + view + strip + glitch + snd +
+      '<br><span class="srcline">SOURCE: ' + d.source + ' (' + d.sourceUrl + '). Snapshot through ' + d.stats.cutoffMonth + '. ' +
+      (nh ? fmt(d.stats.uniqueComplaints) + ' complaints, ' + fmt(d.stats.keptRows) + ' complaint-component rows. ' : fmt(d.stats.keptRows) + ' complaints. ') +
+      'Reference events are editorial markers. <a href="README.md">README</a></span>';
+  }
+
+  function bind() {
+    $('srcNhtsa').onclick = () => setSource('nhtsa');
+    $('srcCfpb').onclick = () => setSource('cfpb');
+    $('play').onclick = () => { state.playing = !state.playing; $('play').textContent = state.playing ? 'Pause' : 'Play'; };
+    $('stepBack').onclick = () => stepTo(state.mi - 1);
+    $('stepFwd').onclick = () => stepTo(state.mi + 1);
+    $('scrub').oninput = (e) => { stepTo(+e.target.value); };
+    document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => { state.period = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b)); });
+    document.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => { state.scale = b.dataset.scale; document.querySelectorAll('[data-scale]').forEach(x => x.classList.toggle('on', x === b)); $('legendMax').textContent = state.scale === 'VOLUME' ? 'ROW PEAK' : '100% OF ROW'; updateCaption(); updateHover(); });
+    document.querySelectorAll('[data-rows]').forEach(b => b.onclick = () => { state.rows = b.dataset.rows; document.querySelectorAll('[data-rows]').forEach(x => x.classList.toggle('on', x === b)); setSource('cfpb'); });
+    document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { state.view = b.dataset.view; setSource('nhtsa'); });
+    $('compSel').onchange = (e) => { state.comp = e.target.value; cur.yp = yearPlane(cur.d, state.comp); updateStrip(); updateHover(); };
+    cv.addEventListener('mousemove', (e) => {
+      if (!geo) return; const b = cv.getBoundingClientRect(); const x = e.clientX - b.left, y = e.clientY - b.top;
+      const c = Math.floor((x - geo.left) / geo.cw), r = Math.floor((y - geo.top) / geo.ch);
+      state.hover = (c >= 0 && r >= 0 && c < geo.C && r < geo.R) ? { r, c } : null; updateHover();
+    });
+    cv.addEventListener('mouseleave', () => { state.hover = null; updateHover(); });
+    cv.addEventListener('click', (e) => { if (!geo) return; const b = cv.getBoundingClientRect(); const c = Math.floor((e.clientX - b.left - geo.left) / geo.cw), r = Math.floor((e.clientY - b.top - geo.top) / geo.ch); state.hover = (c >= 0 && r >= 0 && c < geo.C && r < geo.R) ? { r, c } : null; updateHover(); });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === ' ') { e.preventDefault(); $('play').click(); }
+      else if (e.key === 'ArrowLeft') stepTo(state.mi - 1);
+      else if (e.key === 'ArrowRight') stepTo(state.mi + 1);
+    });
+  }
+
+  // ------------------------------------------------------------- boot ----
+  const load = Promise.all([
+    fetch('data/nhtsa.json').then(r => r.json()),
+    fetch('data/cfpb.json').then(r => r.json()),
+  ]).then(([n, c]) => {
+    data.nhtsa = n; data.cfpb = c;
+    const sel = $('compSel');
+    for (const p of n.yearPlanes) { const o = document.createElement('option'); o.value = p; o.textContent = p === 'ALL' ? 'ALL COMPONENTS' : p; sel.appendChild(o); }
+    sel.value = 'ALL';
+  });
+
+  Gallery.mount({
+    slug: 'complaint-wall',
+    title: 'The Complaint Wall',
+    blurb: 'Millions of consumer complaints to NHTSA and the CFPB, aggregated by month into a wall of cells. Bright cells are where complaints pile up, and a cell glitches when it spikes above its own history. Clicks tick with the complaint rate, and a low alarm sounds when a cell spikes.',
+    onStart(ac, mg) {
+      audio = ac; master = mg;
+      resize();
+      bind();
+      load.then(() => {
+        if (audio && master) { try { sound = makeSound(audio, master); } catch (e) { sound = null; } }
+        // Deep links: #cfpb opens the CFPB wall, #year opens the model-year view.
+        const h = (location.hash || '').toLowerCase();
+        if (h.includes('year')) state.view = 'YEAR';
+        setSource(h.includes('cfpb') ? 'cfpb' : 'nhtsa');
+        state.mi = h.includes('late') ? cur.M - 1 : 0; stepTo(state.mi);
+        if (h.includes('pause')) { state.playing = false; $('play').textContent = 'Play'; }
+        state.lastStep = performance.now();
+        requestAnimationFrame(frame);
+      }).catch((e) => { $('monthNote').textContent = 'DATA FAILED TO LOAD'; console.warn(e); });
+    },
+  });
+  resize();
+})();
+</script>
+</body>
+</html>
