@@ -21,6 +21,31 @@
   style.textContent = css;
   document.head.appendChild(style);
 
+  /*
+   * Binary fallback. Some hosts do not serve raw binary files such as .bin or .i16.
+   * When a fetch for a binary file fails, this wrapper loads a base64 text copy
+   * with the same name plus ".b64.txt" and decodes it into bytes.
+   */
+  const BIN = /\.(bin|i16|i8|u8|u16|f32)$/i;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async function (url, opts) {
+    const u = typeof url === 'string' ? url : (url && url.url) || '';
+    if (!BIN.test(u.split('?')[0])) return origFetch(url, opts);
+    let r = null;
+    try { r = await origFetch(url, opts); } catch (e) { r = null; }
+    if (r && r.ok) {
+      const ct = (r.headers.get('content-type') || '').toLowerCase();
+      if (!ct.startsWith('text/html')) return r;
+    }
+    const t = await origFetch(u + '.b64.txt', opts);
+    if (!t.ok) return r || t;
+    const b64 = (await t.text()).trim();
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
+  };
+
   const Gallery = {
     audio: null,
     master: null,
