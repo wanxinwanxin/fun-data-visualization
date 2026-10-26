@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where Ideas Come From</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/architects-daughter@5.2.5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/share-tech-mono@5.2.5/index.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  /* Blueprint sheet. Deep blue paper, white and light-cyan drafted lines. */
+  :root {
+    --paper: #0e2f66;
+    --paper-2: #0b2655;
+    --ink: #eaf6ff;
+    --ink-2: #bfe3ff;
+    --ink-3: #7fb6e6;
+    --rule: rgba(234, 246, 255, 0.10);
+    --rule-2: rgba(234, 246, 255, 0.04);
+    --hand: 'Architects Daughter', 'Comic Sans MS', cursive;
+    --mono: 'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #259b25; --s7: #9085e9; --s8: #e66767;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: var(--hand);
+    font-size: 14px;
+    line-height: 1.35;
+    overflow-x: hidden;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px),
+      linear-gradient(var(--rule-2) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule-2) 1px, transparent 1px);
+    background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  }
+  .sheet {
+    position: relative;
+    margin: 14px;
+    border: 1.5px solid var(--ink);
+    outline: 1px solid var(--ink);
+    outline-offset: 5px;
+    padding: 18px 20px 26px;
+    min-height: calc(100vh - 28px);
+  }
+  /* zone markers like a drawing frame */
+  .zones { position: absolute; left: 0; right: 0; top: -4px; height: 0; pointer-events: none; }
+  .zones span { position: absolute; top: -16px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); transform: translateX(-50%); }
+  .zones-v { position: absolute; top: 0; bottom: 0; left: -4px; width: 0; pointer-events: none; }
+  .zones-v span { position: absolute; left: -16px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); transform: translateY(-50%); }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 22px; margin-bottom: 8px; }
+  header h1 { margin: 0; font-size: clamp(20px, 2.6vw, 30px); letter-spacing: 2px; text-transform: uppercase; font-weight: 400; }
+  header .sub { font-family: var(--mono); font-size: 12px; color: var(--ink-2); letter-spacing: 0.5px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border: 1px solid var(--ink); opacity: 0.9; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-areas:
+      "stream arcs"
+      "controls controls"
+      "parts caption";
+    gap: 12px 22px;
+  }
+  .panel { position: relative; min-width: 0; }
+  .panel h2 { margin: 0 0 2px; font-size: 13px; font-weight: 400; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-2); font-family: var(--mono); }
+  .stream { grid-area: stream; }
+  .arcs { grid-area: arcs; }
+  .controls { grid-area: controls; }
+  .parts { grid-area: parts; }
+  .caption { grid-area: caption; }
+  svg { display: block; overflow: visible; }
+  svg text { font-family: var(--mono); fill: var(--ink-2); }
+  svg text.hand { font-family: var(--hand); fill: var(--ink); }
+
+  .readout { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .readout b { color: var(--ink); font-weight: 400; }
+
+  /* controls styled as a drafting scale */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 8px 0; }
+  .btn {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink); background: transparent; border: 1px solid var(--ink); padding: 6px 12px; cursor: pointer; border-radius: 2px;
+  }
+  .btn:hover { background: rgba(234, 246, 255, 0.12); }
+  .year { font-family: var(--mono); font-size: 22px; color: var(--ink); min-width: 64px; letter-spacing: 2px; }
+  .scrub { flex: 1 1 220px; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; background:
+    repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px calc(100% / 39)); border-bottom: 1px solid var(--ink); }
+  input[type=range]::-moz-range-track { height: 8px; background: repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px calc(100% / 39)); border-bottom: 1px solid var(--ink); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 22px; margin-top: -8px; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 2px; }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 22px; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 2px; }
+
+  /* parts list, the selector */
+  .parts table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 11.5px; }
+  .parts .wrap { max-height: 250px; overflow-y: auto; border: 1px solid var(--ink); scrollbar-width: thin; scrollbar-color: var(--ink-3) transparent; }
+  .parts th { text-align: left; font-weight: 400; color: var(--ink-2); border-bottom: 1px solid var(--ink); padding: 4px 6px; position: sticky; top: 0; background: var(--paper); letter-spacing: 1px; }
+  .parts td { padding: 3px 6px; border-bottom: 1px solid rgba(234, 246, 255, 0.12); color: var(--ink-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+  .parts td.n { text-align: right; max-width: none; width: 58px; }
+  .parts td.no { width: 34px; max-width: none; color: var(--ink-3); }
+  .parts td.sw { width: 18px; max-width: none; }
+  .parts tr:hover td { background: rgba(234, 246, 255, 0.08); }
+  .parts tr.sel td { color: var(--ink); background: rgba(234, 246, 255, 0.14); }
+  .parts tr.group td { color: var(--ink); }
+  .parts .dot { display: inline-block; width: 9px; height: 9px; border: 1px solid var(--ink); }
+
+  .caption p { margin: 6px 0; font-size: 14px; color: var(--ink); }
+  .caption .src { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .caption a { color: var(--ink); }
+
+  /* title block, lower right like an engineering drawing */
+  .tb { margin-top: 14px; margin-left: auto; width: min(100%, 420px); border: 1px solid var(--ink); display: grid; grid-template-columns: 1fr 1fr; font-family: var(--mono); font-size: 10.5px; }
+  .tb div { padding: 4px 8px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--ink); color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb div:nth-child(2n) { border-right: 0; }
+  .tb div.full { grid-column: 1 / -1; font-family: var(--hand); font-size: 15px; letter-spacing: 2px; color: var(--ink); }
+  .tb div:nth-last-child(-n+2) { border-bottom: 0; }
+  .tb small { color: var(--ink-3); letter-spacing: 1px; margin-right: 6px; }
+
+  .tip { position: fixed; pointer-events: none; z-index: 50; background: var(--paper-2); border: 1px solid var(--ink); padding: 4px 8px; font-family: var(--mono); font-size: 11px; color: var(--ink); display: none; max-width: 260px; }
+
+  @media (max-width: 760px) {
+    .sheet { margin: 10px; padding: 14px 10px 18px; }
+    .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stream" "controls" "arcs" "caption" "parts"; gap: 12px; }
+    .parts .wrap { max-height: 220px; }
+    .zones, .zones-v { display: none; }
+    .year { font-size: 18px; }
+    .readout { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="zones" id="zones"></div>
+  <div class="zones-v" id="zonesv"></div>
+  <header>
+    <h1>Where Ideas Come From</h1>
+    <div class="sub">PATENT CITATIONS BY TECHNOLOGY FIELD, US GRANTS 1985 TO 2024</div>
+  </header>
+  <div class="legend" id="legend"></div>
+  <div class="grid">
+    <section class="panel stream">
+      <h2 id="streamTitle">Cited group share, all US grants</h2>
+      <svg id="stream" role="img" aria-label="Streamgraph of cited technology group shares by year"></svg>
+      <div class="readout" id="shares"></div>
+    </section>
+    <section class="panel arcs">
+      <h2 id="arcsTitle">Strongest flows between classes, 1985</h2>
+      <svg id="arcs" role="img" aria-label="Alluvial of citing class to cited class flows for the current year"></svg>
+      <div class="readout" id="flowOut"></div>
+    </section>
+    <section class="panel controls">
+      <button class="btn" id="play">Pause</button>
+      <div class="year" id="yearOut">1985</div>
+      <div class="scrub"><span>1985</span><input type="range" id="scrub" min="0" max="39" step="1" value="0" aria-label="Year"><span>2024</span></div>
+      <button class="btn" id="redraw" title="Draft the stream again">Redraft</button>
+    </section>
+    <section class="panel parts">
+      <h2>Parts list, select the citing field</h2>
+      <div class="wrap"><table id="parts"><thead><tr><th>NO.</th><th></th><th>PART</th><th>CODE</th><th>QTY, M</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <section class="panel caption">
+      <h2>Notes</h2>
+      <p>You see: for the selected citing field, the stream shows which technology groups its patents cite, year by year, as shares that add to 100 percent. The ribbons show the strongest citation flows between two different classes in the current year.</p>
+      <p>You hear: eight soft tones, one per cited group, each as loud as that group's share in the current year. A pencil scratch marks each line that the plotter draws. A page turn marks each new year.</p>
+      <p class="src">Source: Google Patents Public Data, patents-public-data.patents.publications and cpc.definition on BigQuery. Each patent maps to its primary CPC code. 224 million citations. <a href="README.md">README</a></p>
+      <div class="tb" id="tb"></div>
+    </section>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const PALETTE = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#259b25', '#9085e9', '#e66767'];
+  const INK = '#eaf6ff', INK2 = '#bfe3ff', INK3 = '#7fb6e6';
+  const YEAR_MS = 1150;           // time-lapse speed, one year per 1.15 s
+  const state = { data: null, entity: 'ALL', yearF: 0, playing: false, drawing: false, lastYear: -1, t0: 0, penAbort: null };
+  let audio = null;
+  const $ = (id) => document.getElementById(id);
+  const fmt = d3.format(',');
+  const pct = (v) => (v * 100).toFixed(1) + ' %';
+
+  /* ---------- data ---------- */
+  fetch('data/flows.json').then(r => r.json()).then(d => {
+    state.data = d;
+    d.ent = {};
+    d.entities.forEach(e => { d.ent[e.id] = e; });
+    d.gidx = {};
+    d.groups.forEach((g, i) => { d.gidx[g.code] = i; });
+    buildLegend();
+    buildParts();
+    buildZones();
+    buildTitleBlock();
+    renderStream(false);
+    renderArcs();
+    updateReadouts();
+    window.addEventListener('resize', debounce(() => { renderStream(false); renderArcs(); buildZones(); }, 150));
+  });
+
+  function groupOf(code) {
+    if (code.slice(0, 3) === 'G06') return 'G06';
+    if ('DE'.includes(code[0])) return 'DE';
+    return code[0];
+  }
+  function colorOf(code) { return PALETTE[state.data.gidx[groupOf(code)]]; }
+  function entity() { return state.data.ent[state.entity]; }
+  function shares(e, yi) { const row = e.flow[yi]; const t = d3.sum(row) || 1; return row.map(v => v / t); }
+  function sharesF(e, yf) {
+    const a = Math.floor(yf), b = Math.min(a + 1, e.flow.length - 1), f = yf - a;
+    const sa = shares(e, a), sb = shares(e, b);
+    return sa.map((v, i) => v * (1 - f) + sb[i] * f);
+  }
+  function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
+
+  /* ---------- static parts of the sheet ---------- */
+  function buildLegend() {
+    $('legend').innerHTML = state.data.groups.map((g, i) =>
+      `<span title="${g.note}"><span class="sw" style="background:${PALETTE[i]}"></span>${g.code} ${g.label}</span>`).join('');
+  }
+  function buildZones() {
+    const w = document.querySelector('.sheet').clientWidth, h = document.querySelector('.sheet').clientHeight;
+    const nz = Math.max(2, Math.round(w / 180)), nv = Math.max(2, Math.round(h / 180));
+    $('zones').innerHTML = d3.range(nz).map(i => `<span style="left:${(i + 0.5) / nz * 100}%">${i + 1}</span>`).join('');
+    $('zonesv').innerHTML = d3.range(nv).map(i => `<span style="top:${(i + 0.5) / nv * 100}%">${String.fromCharCode(65 + i)}</span>`).join('');
+  }
+  function buildParts() {
+    const tb = d3.select('#parts tbody');
+    const rows = state.data.entities.map((e, i) => ({ e, i, qty: d3.sum(e.flow, r => d3.sum(r)) / 1e6 }));
+    const tr = tb.selectAll('tr').data(rows).join('tr')
+      .attr('class', d => (d.e.kind === 'class' ? '' : 'group ') + (d.e.id === state.entity ? 'sel' : ''))
+      .on('click', (ev, d) => selectEntity(d.e.id));
+    tr.append('td').attr('class', 'no').text(d => String(d.i + 1).padStart(2, '0'));
+    tr.append('td').attr('class', 'sw').html(d => d.e.kind === 'all' ? '' : `<span class="dot" style="background:${PALETTE[state.data.gidx[d.e.kind === 'group' ? d.e.id : d.e.group]]}"></span>`);
+    tr.append('td').text(d => d.e.label).attr('title', d => d.e.label);
+    tr.append('td').attr('class', 'no').text(d => d.e.kind === 'all' ? '*' : d.e.id);
+    tr.append('td').attr('class', 'n').text(d => d.qty.toFixed(1));
+  }
+  function buildTitleBlock() {
+    const e = entity(), m = state.data.meta;
+    $('tb').innerHTML = `
+      <div class="full">WHERE IDEAS COME FROM</div>
+      <div><small>DWG NO</small>TR-11-PD</div><div><small>SHEET</small>1 OF 1</div>
+      <div><small>PART</small>${e.kind === 'all' ? 'ALL GRANTS' : e.id}</div><div><small>REV</small>${state.data.years[Math.floor(state.yearF)]}</div>
+      <div><small>SCALE</small>SHARE OF CITATIONS</div><div><small>DRAWN</small>${m.generated}</div>
+      <div><small>SRC</small>GOOGLE PATENTS PUBLIC DATA</div><div><small>QTY</small>${(m.citations_total / 1e6).toFixed(0)} M CITATIONS</div>`;
+  }
+  function selectEntity(id) {
+    if (id === state.entity) return;
+    state.entity = id;
+    d3.selectAll('#parts tbody tr').classed('sel', d => d.e.id === id);
+    const e = entity();
+    $('streamTitle').textContent = 'Cited group share, ' + (e.kind === 'all' ? 'all US grants' : (e.kind === 'group' ? e.label.toLowerCase() : e.id + ' ' + e.label.toLowerCase()));
+    renderStream(true);
+    renderArcs();
+    updateReadouts();
+    buildTitleBlock();
+  }
+
+  /* ---------- streamgraph with plotter-pen drafting ---------- */
+  const S = {};  // geometry of the stream chart
+  function renderStream(animate) {
+    const svg = d3.select('#stream');
+    const box = svg.node().parentNode.getBoundingClientRect();
+    const W = Math.max(280, box.width), narrow = W < 520;
+    const H = narrow ? 250 : Math.min(380, Math.max(260, Math.round(W * 0.46)));
+    const m = { top: 26, right: narrow ? 14 : 34, bottom: 54, left: narrow ? 10 : 16 };
+    svg.attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    svg.selectAll('*').remove();
+    const e = entity(), years = state.data.years;
+    const x = d3.scaleLinear().domain([years[0], years[years.length - 1]]).range([m.left, W - m.right]);
+    const y = d3.scaleLinear().domain([-0.5, 0.5]).range([H - m.bottom, m.top]);
+    const series = d3.stack().keys(d3.range(8)).offset(d3.stackOffsetSilhouette).order(d3.stackOrderNone)
+      (years.map((yr, i) => shares(e, i)));
+    Object.assign(S, { x, y, W, H, m });
+    const defs = svg.append('defs');
+    PALETTE.forEach((c, i) => {
+      const p = defs.append('pattern').attr('id', 'hatch' + i).attr('patternUnits', 'userSpaceOnUse').attr('width', 7).attr('height', 7).attr('patternTransform', 'rotate(45)');
+      p.append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 7).attr('stroke', c).attr('stroke-width', 1.2).attr('stroke-opacity', 0.45);
+    });
+    // axis rules: solid hairlines
+    const g = svg.append('g');
+    g.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', H - m.bottom + 8).attr('y2', H - m.bottom + 8).attr('stroke', INK).attr('stroke-width', 0.8);
+    const ticks = narrow ? [1985, 1995, 2005, 2015, 2024] : [1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2024];
+    g.selectAll('line.t').data(ticks).join('line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', H - m.bottom + 8).attr('y2', H - m.bottom + 14).attr('stroke', INK);
+    g.selectAll('text.t').data(ticks).join('text').attr('x', d => x(d)).attr('y', H - m.bottom + 26).attr('text-anchor', 'middle').attr('font-size', 11).text(d => d);
+    // dimension line: 40 years
+    const dy = H - 4;
+    g.append('line').attr('x1', x(1985)).attr('x2', x(2024)).attr('y1', dy).attr('y2', dy).attr('stroke', INK2).attr('stroke-width', 0.7).attr('stroke-dasharray', '6 4').attr('marker-start', 'url(#arrL)').attr('marker-end', 'url(#arrR)');
+    defs.append('marker').attr('id', 'arrR').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5).attr('markerWidth', 9).attr('markerHeight', 9).attr('orient', 'auto').append('path').attr('d', 'M0,1 L9,5 L0,9').attr('fill', 'none').attr('stroke', INK2);
+    defs.append('marker').attr('id', 'arrL').attr('viewBox', '0 0 10 10').attr('refX', 1).attr('refY', 5).attr('markerWidth', 9).attr('markerHeight', 9).attr('orient', 'auto-start-reverse').append('path').attr('d', 'M0,1 L9,5 L0,9').attr('fill', 'none').attr('stroke', INK2);
+    g.append('text').attr('x', (x(1985) + x(2024)) / 2).attr('y', dy - 4).attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', INK2).text('40 YEARS');
+    if (!narrow) {
+      const dx = W - m.right + 14;
+      g.append('line').attr('x1', dx).attr('x2', dx).attr('y1', y(0.5)).attr('y2', y(-0.5)).attr('stroke', INK2).attr('stroke-width', 0.7).attr('stroke-dasharray', '6 4').attr('marker-start', 'url(#arrL)').attr('marker-end', 'url(#arrR)');
+      g.append('text').attr('transform', `translate(${dx + 10},${y(0)}) rotate(90)`).attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', INK2).text('100 % OF CITATIONS');
+    }
+    // layers: fills and boundary lines
+    const area = d3.area().x((d, i) => x(years[i])).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveMonotoneX);
+    const line1 = d3.line().x((d, i) => x(years[i])).y(d => y(d[1])).curve(d3.curveMonotoneX);
+    const line0 = d3.line().x((d, i) => x(years[i])).y(d => y(d[0])).curve(d3.curveMonotoneX);
+    const fills = svg.append('g').attr('class', 'fills');
+    series.forEach((s, i) => {
+      fills.append('path').attr('d', area(s)).attr('fill', PALETTE[i]).attr('fill-opacity', 0.42).attr('class', 'fill fill' + i)
+        .on('mousemove', (ev) => showTip(ev, tipStream(i, ev))).on('mouseleave', hideTip);
+      fills.append('path').attr('d', area(s)).attr('fill', `url(#hatch${i})`).attr('class', 'hatch hatch' + i).attr('pointer-events', 'none');
+    });
+    const lines = svg.append('g').attr('class', 'lines').attr('fill', 'none').attr('stroke', INK).attr('stroke-width', 1).attr('stroke-linejoin', 'round');
+    const bounds = [line0(series[0])].concat(series.map(s => line1(s)));
+    bounds.forEach((d, i) => lines.append('path').attr('d', d).attr('class', 'b' + i));
+    // year cursor, callouts and pencil
+    const cur = svg.append('g').attr('class', 'cursor');
+    cur.append('line').attr('class', 'cl').attr('y1', y(0.5) - 10).attr('y2', H - m.bottom + 8).attr('stroke', INK).attr('stroke-width', 1).attr('stroke-dasharray', '4 3');
+    cur.append('text').attr('class', 'cy hand').attr('y', y(0.5) - 14).attr('font-size', 13).attr('text-anchor', 'middle');
+    const co = svg.append('g').attr('class', 'callouts');
+    svg.append('g').attr('class', 'pen').style('display', 'none').html(
+      '<path d="M0,0 L-6,-14 L-2,-16 L4,-14 Z" fill="#f2d16b" stroke="#2b2b2b" stroke-width="0.6"/>' +
+      '<rect x="-6" y="-44" width="10" height="30" fill="#f2d16b" stroke="#2b2b2b" stroke-width="0.6" transform="rotate(0)"/>' +
+      '<rect x="-6" y="-48" width="10" height="5" fill="#e07a9a" stroke="#2b2b2b" stroke-width="0.6"/>' +
+      '<circle r="2.2" fill="none" stroke="#eaf6ff" stroke-width="0.6"/>'
+    );
+    if (animate) draftStream(svg, bounds); else { placeCursor(); }
+  }
+  function tipStream(i, ev) {
+    const yi = Math.round(S.x.invert(d3.pointer(ev, d3.select('#stream').node())[0])) - 1985;
+    const yc = Math.max(0, Math.min(39, yi)), e = entity(), g = state.data.groups[i];
+    return `${g.code} ${g.label}<br>${state.data.years[yc]}: ${pct(shares(e, yc)[i])} of ${fmt(d3.sum(e.flow[yc]))} citations`;
+  }
+  /* The plotter draws each boundary line with a pencil, then the layer below it fills with hatching. */
+  function draftStream(svg, bounds) {
+    if (state.penAbort) state.penAbort();
+    let aborted = false;
+    state.penAbort = () => { aborted = true; };
+    state.drawing = true;
+    svg.selectAll('.fill, .hatch').attr('opacity', 0);
+    svg.selectAll('.cursor, .callouts').attr('opacity', 0);
+    const paths = svg.selectAll('.lines path').nodes();
+    const pen = svg.select('.pen').style('display', null);
+    paths.forEach(p => { const L = p.getTotalLength(); p.dataset.len = L; p.setAttribute('stroke-dasharray', L + ' ' + L); p.setAttribute('stroke-dashoffset', L); });
+    const per = 420, start = performance.now();
+    let lastScratch = 0;
+    function frame(now) {
+      if (aborted) return;
+      const t = now - start, k = Math.floor(t / per);
+      paths.forEach((p, i) => {
+        const L = +p.dataset.len;
+        if (i < k) p.setAttribute('stroke-dashoffset', 0);
+        else if (i === k) {
+          const f = d3.easeCubicInOut((t - k * per) / per);
+          p.setAttribute('stroke-dashoffset', L * (1 - f));
+          const pt = p.getPointAtLength(L * f);
+          pen.attr('transform', `translate(${pt.x},${pt.y}) rotate(35)`);
+          if (now - lastScratch > 95) { lastScratch = now; if (audio) audio.scratch(f, 0.08, 0.16); }
+        }
+      });
+      for (let i = 0; i < Math.min(k, 8); i++) {
+        svg.select('.fill' + i).attr('opacity', 1); svg.select('.hatch' + i).attr('opacity', 1);
+      }
+      if (k < paths.length) requestAnimationFrame(frame);
+      else {
+        svg.selectAll('.fill, .hatch').attr('opacity', 1);
+        pen.style('display', 'none');
+        svg.selectAll('.cursor, .callouts').attr('opacity', 1);
+        state.drawing = false;
+        placeCursor();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  function placeCursor() {
+    const svg = d3.select('#stream'), yf = state.yearF, yi = Math.floor(yf);
+    const year = 1985 + yf, X = S.x(year), e = entity();
+    svg.select('.cl').attr('x1', X).attr('x2', X);
+    svg.select('.cy').attr('x', X).text(state.data.years[yi]);
+    // callouts with leader lines: the largest cited group and the computing share
+    const sh = sharesF(e, yf), top = d3.maxIndex(sh), g06 = state.data.gidx.G06;
+    const items = [{ i: top, label: `${state.data.groups[top].code} ${pct(sh[top])}` }];
+    if (top !== g06) items.push({ i: g06, label: `G06 ${pct(sh[g06])}` });
+    const co = svg.select('.callouts'); co.selectAll('*').remove();
+    const left = X > (S.W * 0.55), W = S.W;
+    items.forEach((it, k) => {
+      const yy = S.y(0.5) + 16 + k * 20, tx = left ? X - 18 : X + 18;
+      co.append('line').attr('x1', X).attr('y1', yy - 4).attr('x2', left ? tx + 2 : tx - 2).attr('y2', yy - 4).attr('stroke', INK2).attr('stroke-width', 0.7).attr('stroke-dasharray', '3 3');
+      co.append('rect').attr('x', 0).attr('y', 0).attr('width', 10).attr('height', 10).attr('fill', PALETTE[it.i]).attr('stroke', INK).attr('stroke-width', 0.6)
+        .attr('transform', `translate(${left ? tx - 10 : tx},${yy - 9})`);
+      co.append('text').attr('x', left ? tx - 14 : tx + 14).attr('y', yy).attr('font-size', 11).attr('fill', INK).attr('text-anchor', left ? 'end' : 'start').text(it.label);
+    });
+  }
+
+  /* ---------- alluvial of class to class flows for the current year ---------- */
+  function renderArcs() {
+    const svg = d3.select('#arcs');
+    const box = svg.node().parentNode.getBoundingClientRect();
+    const W = Math.max(280, box.width), narrow = W < 420;
+    const H = narrow ? 330 : Math.min(380, Math.max(300, Math.round(W * 0.7)));
+    svg.attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
+    svg.selectAll('*').remove();
+    const e = entity(), yi = Math.floor(state.yearF), yr = state.data.years[yi];
+    const rows = state.data.alluvial[e.id][yi];
+    $('arcsTitle').textContent = `Strongest flows between classes, ${yr}`;
+    if (!rows.length) { svg.append('text').attr('x', W / 2).attr('y', H / 2).attr('text-anchor', 'middle').text('NO PAIRS ABOVE 20 CITATIONS'); $('flowOut').textContent = ''; return; }
+    const lw = narrow ? 58 : Math.min(190, W * 0.33), rw = narrow ? 112 : Math.min(190, W * 0.33);
+    const xL = lw, xR = W - rw, top = 22, bot = H - 14, nodeW = 6, gap = 4;
+    const L = d3.rollups(rows, v => d3.sum(v, d => d[2]), d => d[0]).sort((a, b) => b[1] - a[1]);
+    const R = d3.rollups(rows, v => d3.sum(v, d => d[2]), d => d[1]).sort((a, b) => b[1] - a[1]);
+    const total = d3.sum(rows, d => d[2]);
+    const scale = (bot - top - gap * (Math.max(L.length, R.length) - 1)) / total;
+    const pos = (list) => { let yy = top; const o = {}; list.forEach(([k, v]) => { o[k] = { y0: yy, y1: yy + v * scale, off: 0 }; yy += v * scale + gap; }); return o; };
+    const PL = pos(L), PR = pos(R);
+    const titles = state.data.titles;
+    const g = svg.append('g');
+    // ribbons, colored by the cited group
+    const rib = g.append('g').attr('class', 'ribs');
+    rows.forEach(([s, d, n]) => {
+      const h = n * scale, a = PL[s], b = PR[d];
+      const y0a = a.y0 + a.off, y0b = b.y0 + b.off; a.off += h; b.off += h;
+      const x0 = xL + nodeW, x1 = xR, cx = (x0 + x1) / 2;
+      const path = `M${x0},${y0a} C${cx},${y0a} ${cx},${y0b} ${x1},${y0b} L${x1},${y0b + h} C${cx},${y0b + h} ${cx},${y0a + h} ${x0},${y0a + h} Z`;
+      rib.append('path').attr('d', path).attr('fill', colorOf(d)).attr('fill-opacity', 0.5).attr('stroke', 'none')
+        .on('mousemove', (ev) => showTip(ev, `${s} ${titles[s] || ''} &rarr; ${d} ${titles[d] || ''}<br>${fmt(n)} citations in ${yr}`))
+        .on('mouseleave', hideTip)
+        .attr('opacity', 0).transition().duration(350).delay((_, i) => 0).attr('opacity', 1);
+    });
+    // nodes
+    const nodes = g.append('g');
+    const drawNodes = (P, xx, anchor, maxCh) => {
+      Object.entries(P).forEach(([k, p]) => {
+        nodes.append('rect').attr('x', xx).attr('y', p.y0).attr('width', nodeW).attr('height', Math.max(0.5, p.y1 - p.y0)).attr('fill', colorOf(k)).attr('stroke', INK).attr('stroke-width', 0.7);
+        const hgt = p.y1 - p.y0, mid = (p.y0 + p.y1) / 2;
+        if (hgt >= 7.5 || Object.keys(P).length <= 6) {
+          const t = titles[k] || '';
+          const label = maxCh > 6 ? `${k} ${t.length > maxCh - 5 ? t.slice(0, maxCh - 6).trim() + '…' : t}` : k;
+          nodes.append('text').attr('x', anchor === 'end' ? xx - 6 : xx + nodeW + 6).attr('y', mid + 3.5).attr('text-anchor', anchor).attr('font-size', 10.5).attr('fill', INK).text(label);
+        }
+      });
+    };
+    drawNodes(PL, xL, 'end', narrow ? 4 : Math.floor(lw / 6.3));
+    drawNodes(PR, xR, 'start', narrow ? 16 : Math.floor(rw / 6.3));
+    svg.append('text').attr('x', xL + nodeW).attr('y', 11).attr('text-anchor', 'end').attr('font-size', 10).attr('fill', INK2).text('CITING CLASS');
+    svg.append('text').attr('x', xR).attr('y', 11).attr('font-size', 10).attr('fill', INK2).text('CITED CLASS');
+    const big = rows[0];
+    $('flowOut').innerHTML = `LARGEST FLOW <b>${big[0]} &rarr; ${big[1]}</b> ${fmt(big[2])} &middot; ${fmt(rows.length)} PAIRS SHOWN, ${fmt(total)} CITATIONS`;
+  }
+
+  function updateReadouts() {
+    const e = entity(), yi = Math.floor(state.yearF);
+    const sh = shares(e, yi);
+    $('shares').innerHTML = `<b>${state.data.years[yi]}</b> &middot; ${fmt(d3.sum(e.flow[yi]))} CITATIONS &middot; ` + state.data.groups.map((g, i) => `${g.code} ${(sh[i] * 100).toFixed(1)}`).join(' &middot; ');
+    $('yearOut').textContent = state.data.years[yi];
+    $('scrub').value = yi;
+  }
+
+  /* ---------- tooltip ---------- */
+  function showTip(ev, html) { const t = $('tip'); t.innerHTML = html; t.style.display = 'block'; t.style.left = Math.min(ev.clientX + 12, window.innerWidth - 270) + 'px'; t.style.top = (ev.clientY + 12) + 'px'; }
+  function hideTip() { $('tip').style.display = 'none'; }
+
+  /* ---------- time-lapse ---------- */
+  function setYear(yf, redrawArcs) {
+    state.yearF = Math.max(0, Math.min(39, yf));
+    const yi = Math.floor(state.yearF);
+    if (!state.drawing) placeCursor();
+    if (yi !== state.lastYear) {
+      state.lastYear = yi;
+      updateReadouts();
+      if (redrawArcs !== false) renderArcs();
+      buildTitleBlock();
+      if (audio) audio.pageFlip();
+    }
+    if (audio) audio.chord(sharesF(entity(), state.yearF));
+  }
+  function tick(now) {
+    if (!state.playing) return;
+    if (!state.drawing) {
+      const yf = state.yearF + (now - state.t0) / YEAR_MS;
+      setYear(yf >= 39.999 ? 0 : yf);
+    }
+    state.t0 = now;
+    requestAnimationFrame(tick);
+  }
+  $('play').addEventListener('click', () => {
+    state.playing = !state.playing;
+    $('play').textContent = state.playing ? 'Pause' : 'Play';
+    if (state.playing) { state.t0 = performance.now(); requestAnimationFrame(tick); }
+  });
+  $('scrub').addEventListener('input', (ev) => { setYear(+ev.target.value); });
+  $('redraw').addEventListener('click', () => { renderStream(true); });
+
+  /* ---------- sound ---------- */
+  function makeAudio(ctx, master) {
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 0.4;
+    const dry = ctx.createGain(); dry.gain.value = 0.75;
+    const wet = ctx.createGain(); wet.gain.value = 0.4;
+    const conv = ctx.createConvolver();
+    const irLen = Math.floor(ctx.sampleRate * 2.4), ir = ctx.createBuffer(2, irLen, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3.2); }
+    conv.buffer = ir;
+    lp.connect(dry).connect(master);
+    lp.connect(conv).connect(wet).connect(master);
+    const noiseLen = Math.floor(ctx.sampleRate * 0.5), noise = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    { const d = noise.getChannelData(0); for (let i = 0; i < noiseLen; i++) d[i] = Math.random() * 2 - 1; }
+    // A major ninth with the thirteenth: A2 E3 B3 C#4 E4 G#4 B4 F#5, one tone per cited group
+    const freqs = [110, 164.81, 246.94, 277.18, 329.63, 415.30, 493.88, 739.99];
+    const tones = freqs.map((f, i) => {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = f; o2.detune.value = 5;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const p = ctx.createStereoPanner(); p.pan.value = (i / 7 - 0.5) * 1.2;
+      o.connect(g); o2.connect(g); g.connect(p).connect(lp); o.start(); o2.start();
+      return g;
+    });
+    return {
+      chord(sh) {
+        const t = ctx.currentTime;
+        sh.forEach((s, i) => tones[i].gain.setTargetAtTime(0.055 * Math.pow(s, 0.75), t, 0.3));
+      },
+      scratch(x01, len, level) {
+        const t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = noise;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800 + Math.random() * 2200; bp.Q.value = 1.4;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        const p = ctx.createStereoPanner(); p.pan.value = (x01 - 0.5) * 1.4;
+        s.connect(bp).connect(g).connect(p).connect(lp); s.start(t); s.stop(t + len + 0.05);
+      },
+      pageFlip() {
+        const t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = noise;
+        const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.7;
+        f.frequency.setValueAtTime(3200, t); f.frequency.exponentialRampToValueAtTime(260, t + 0.28);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+        s.connect(f).connect(g).connect(lp); s.start(t); s.stop(t + 0.35);
+      }
+    };
+  }
+
+  /* ---------- entry ---------- */
+  Gallery.mount({
+    slug: 'patent-drift',
+    title: 'Where Ideas Come From',
+    blurb: 'A plotter drafts which technology fields US patents borrow their ideas from, year by year, from 224 million citations. Eight soft tones follow the shares. A pencil scratches as each line is drawn.',
+    onStart(ctx, master) {
+      if (ctx) { try { audio = makeAudio(ctx, master); } catch (err) { audio = null; } }
+      const go = () => {
+        state.playing = true; state.t0 = performance.now();
+        renderStream(true);
+        requestAnimationFrame(tick);
+      };
+      if (state.data) go(); else { const w = setInterval(() => { if (state.data) { clearInterval(w); go(); } }, 50); }
+    }
+  });
+})();
+</script>
+</body>
+</html>
