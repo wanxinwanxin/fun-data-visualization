@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Grid Breathes</title>
+<style>
+  :root {
+    --bg: #050806;
+    --bg2: #0a100c;
+    --panel: #0b1510;
+    --line: #1d3326;
+    --line2: #2b4d39;
+    --text: #9fb8a8;
+    --text2: #6c8a78;
+    --bright: #d8ffe6;
+    --green: #39ff8a;
+    --green-dim: #1f8f4e;
+    --amber: #ffb347;
+    --amber-dim: #9a6a24;
+    --neutral: #8aa092;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; overflow-x: hidden; }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9000;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.16) 2px, rgba(0,0,0,.16) 3px);
+    mix-blend-mode: multiply;
+  }
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .crt { display: flex; flex-direction: column; height: 100vh; padding-bottom: 46px; }
+
+  header.bar {
+    display: flex; align-items: center; gap: 12px; padding: 8px 14px;
+    border-bottom: 1px solid var(--line); background: var(--bg2); flex-wrap: wrap;
+  }
+  .led { width: 9px; height: 9px; border-radius: 50%; background: #1b3d28; box-shadow: inset 0 0 2px #000; flex: none; }
+  .led.on { background: var(--green); box-shadow: 0 0 6px var(--green), 0 0 12px rgba(57,255,138,.45); animation: blink 2.4s infinite; }
+  .led.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: none; }
+  @keyframes blink { 0%, 92% { opacity: 1; } 96% { opacity: .35; } 100% { opacity: 1; } }
+  header h1 { margin: 0; font-size: 17px; letter-spacing: 3px; color: var(--green); font-weight: 600; text-shadow: 0 0 8px rgba(57,255,138,.5); }
+  header .sub { color: var(--text2); letter-spacing: 1px; font-size: 11px; }
+  header .status { margin-left: auto; color: var(--amber); font-size: 11px; letter-spacing: 2px; }
+
+  main.deck { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
+
+  section.scope {
+    position: relative; min-height: 0; background:
+      linear-gradient(rgba(29,51,38,.35) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(90deg, rgba(29,51,38,.35) 1px, transparent 1px) 0 0 / 40px 40px, var(--bg);
+    overflow: hidden;
+  }
+  canvas#map { display: block; width: 100%; height: 100%; }
+  .caption {
+    position: absolute; left: 12px; bottom: 10px; max-width: 330px; font-size: 11px; line-height: 1.45;
+    color: var(--text); background: rgba(5,8,6,.78); border: 1px solid var(--line); padding: 8px 10px;
+  }
+  .caption b { color: var(--bright); font-weight: 600; }
+  .caption .k { color: var(--green); }
+  .caption .a { color: var(--amber); }
+  .tip {
+    position: absolute; display: none; pointer-events: none; z-index: 20; min-width: 190px;
+    background: rgba(5,8,6,.94); border: 1px solid var(--line2); padding: 8px 10px; font-size: 11px; line-height: 1.5;
+    box-shadow: 0 0 12px rgba(57,255,138,.15);
+  }
+  .tip h4 { margin: 0 0 3px; color: var(--green); font-size: 12px; letter-spacing: 1px; }
+  .tip .nm { color: var(--text2); display: block; margin-bottom: 4px; }
+  .tip table { border-collapse: collapse; width: 100%; }
+  .tip td { padding: 0 2px; white-space: nowrap; }
+  .tip td.v { text-align: right; color: var(--bright); font-variant-numeric: tabular-nums; }
+
+  aside.console {
+    border-left: 1px solid var(--line); background: var(--panel); padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0;
+  }
+  .readout { border: 1px solid var(--line); background: var(--bg); padding: 6px 10px; }
+  .readout .lbl { font-size: 10px; letter-spacing: 2px; color: var(--text2); margin-bottom: 4px; }
+  .clock .t1 { color: var(--bright); font-size: 15px; letter-spacing: 1px; }
+  .clock .t2 { color: var(--text); font-size: 11px; margin-top: 2px; letter-spacing: 1px; }
+  .digits { font-size: 30px; line-height: 1; color: var(--amber); letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,179,71,.5); font-variant-numeric: tabular-nums; }
+  .digits small { font-size: 12px; color: var(--amber-dim); letter-spacing: 2px; margin-left: 4px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row2 .val { color: var(--bright); font-size: 15px; font-variant-numeric: tabular-nums; }
+  .row2 .val.neg { color: var(--amber); }
+  .row2 .val.pos { color: var(--green); }
+
+  .stack { display: flex; height: 10px; width: 100%; margin: 4px 0 8px; background: var(--bg2); }
+  .stack i { display: block; height: 100%; margin-right: 2px; }
+  .stack i:last-child { margin-right: 0; }
+  .fuelrow { display: grid; grid-template-columns: 10px 58px 1fr 52px 38px; align-items: center; gap: 6px; font-size: 11px; line-height: 1.7; }
+  .fuelrow .sw { width: 10px; height: 10px; }
+  .fuelrow .bar { height: 6px; background: var(--bg2); position: relative; }
+  .fuelrow .bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+  .fuelrow .mw, .fuelrow .pc { text-align: right; font-variant-numeric: tabular-nums; }
+  .fuelrow .pc { color: var(--text2); }
+
+  .tie { display: grid; grid-template-columns: 1fr 64px; gap: 6px; font-size: 11px; line-height: 1.7; }
+  .tie .mw { text-align: right; color: var(--bright); font-variant-numeric: tabular-nums; }
+  .tie .dir { color: var(--green); }
+  .tie .lab { color: var(--text); }
+
+  .legend { font-size: 10.5px; line-height: 1.5; }
+  .legend .it { display: flex; align-items: center; gap: 8px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .legend .pt { width: 22px; height: 2px; background: linear-gradient(90deg, transparent, var(--green)); flex: none; position: relative; }
+  .legend .pt::after { content: ""; position: absolute; right: -2px; top: -1px; width: 4px; height: 4px; border-radius: 50%; background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .legend .sz { display: flex; align-items: center; gap: 4px; }
+  .legend .sz span { border: 1px solid var(--neutral); border-radius: 50%; display: inline-block; }
+  .src { font-size: 10px; color: var(--text2); line-height: 1.5; }
+
+  footer.controls { border-top: 1px solid var(--line); background: var(--bg2); padding: 8px 14px 10px; }
+  .ctl-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .group { display: flex; align-items: center; gap: 6px; }
+  .group .lbl { font-size: 10px; letter-spacing: 2px; color: var(--text2); margin-right: 2px; }
+  button.rocker, button.chunk, button.step {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--text); cursor: pointer;
+    background: linear-gradient(#142219, #0a120d); border: 1px solid var(--line2); padding: 6px 10px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 0 #000; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button.rocker:hover, button.chunk:hover, button.step:hover { color: var(--bright); }
+  button.rocker .led { width: 7px; height: 7px; }
+  button.rocker.on { color: var(--green); background: linear-gradient(#0d1f14, #091a10); box-shadow: inset 0 2px 4px #000; }
+  button.rocker.on .led { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  button.chunk { padding: 7px 14px; min-width: 88px; justify-content: center; color: var(--amber); border-color: var(--amber-dim); }
+  button.chunk .led { background: #3a2a10; }
+  button.chunk.run .led { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  button.step { padding: 6px 8px; }
+  .dial { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line2); background: radial-gradient(circle at 40% 35%, #1a2a1f, #070c09 70%); position: relative; cursor: pointer; box-shadow: 0 2px 0 #000; flex: none; }
+  .dial::after { content: ""; position: absolute; left: 50%; top: 3px; width: 2px; height: 11px; margin-left: -1px; background: var(--amber); box-shadow: 0 0 4px var(--amber); transform-origin: 1px 14px; transform: rotate(var(--rot, -40deg)); }
+  .dial-lab { font-size: 11px; color: var(--text); min-width: 56px; }
+  .scrub { flex: 1 1 240px; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; background: transparent; margin: 0; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; background: repeating-linear-gradient(90deg, var(--line2) 0 1px, transparent 1px calc(100% / 7)), var(--bg); border: 1px solid var(--line); }
+  input[type=range]::-moz-range-track { height: 8px; background: var(--bg); border: 1px solid var(--line); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 18px; margin-top: -6px; background: linear-gradient(var(--amber), #a86f1f); border: 1px solid #000; box-shadow: 0 0 6px rgba(255,179,71,.6); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 18px; border-radius: 0; background: linear-gradient(var(--amber), #a86f1f); border: 1px solid #000; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); font-size: 9px; letter-spacing: 1px; color: var(--text2); }
+  .days span { padding-left: 2px; }
+  .caption-m { display: none; font-size: 11px; line-height: 1.45; }
+  .caption-m b { color: var(--bright); font-weight: 600; }
+  .caption-m .k { color: var(--green); }
+  .caption-m .a { color: var(--amber); }
+
+  @media (max-width: 760px) {
+    main.deck { grid-template-columns: 1fr; }
+    section.scope { height: 42vh; min-height: 250px; }
+    aside.console { border-left: none; border-top: 1px solid var(--line); }
+    .crt { height: auto; min-height: 100vh; }
+    .caption { display: none; }
+    .caption-m { display: block; }
+    header h1 { font-size: 14px; letter-spacing: 2px; }
+    header .sub, #pcount { display: none; }
+    header.bar { flex-wrap: nowrap; }
+    .digits { font-size: 24px; }
+    .ctl-row { gap: 8px; }
+    #seasons { flex-wrap: wrap; }
+    button.rocker { padding: 5px 8px; font-size: 10px; }
+    .scrub { flex-basis: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="crt">
+  <header class="bar">
+    <div class="led on" id="led"></div>
+    <h1>THE GRID BREATHES</h1>
+    <span class="sub">EIA-930 HOURLY INTERCHANGE // US BALANCING AUTHORITIES // 2024</span>
+    <span class="status"><span id="status">LOADING</span><span id="pcount"></span></span>
+  </header>
+
+  <main class="deck">
+    <section class="scope" id="scope">
+      <canvas id="map"></canvas>
+      <div class="caption" id="caption">
+        <b>WHAT YOU SEE.</b> Each dot is a balancing authority, sized by its demand. <span class="k">Green</span> dots export power, <span class="a">amber</span> dots import it. Particles run along the tie lines in the direction of the flow. More particles mean more megawatts.
+        <b>WHAT YOU HEAR.</b> The hum rises with total demand and brightens when solar rises. The breath of noise is wind power. Each ping is a tie line above 2,500 MW, panned east or west by its longitude.
+      </div>
+      <div class="tip" id="tip"></div>
+    </section>
+
+    <aside class="console">
+      <div class="readout caption-m"><div class="lbl">OPERATOR NOTE</div><b>WHAT YOU SEE.</b> Each dot is a balancing authority, sized by its demand. <span class="k">Green</span> dots export power, <span class="a">amber</span> dots import it. Particles run along the tie lines in the direction of the flow. More particles mean more megawatts.
+        <b>WHAT YOU HEAR.</b> The hum rises with total demand and brightens when solar rises. The breath of noise is wind power. Each ping is a tie line above 2,500 MW, panned east or west by its longitude.</div>
+      <div class="readout clock">
+        <div class="lbl">SYSTEM CLOCK</div>
+        <div class="t1" id="clock1">--- -- --- ----</div>
+        <div class="t2" id="clock2">--:-- UTC</div>
+      </div>
+      <div class="readout">
+        <div class="lbl">TOTAL DEMAND, LOWER 48</div>
+        <div class="digits" id="demand">---,---<small>MW</small></div>
+      </div>
+      <div class="row2">
+        <div class="readout"><div class="lbl">NET GEN</div><div class="val" id="gen">---</div></div>
+        <div class="readout"><div class="lbl">NET IMPORT</div><div class="val" id="imp">---</div></div>
+      </div>
+      <div class="readout">
+        <div class="lbl">FUEL MIX, LOWER 48</div>
+        <div class="stack" id="stack"></div>
+        <div id="fuels"></div>
+      </div>
+      <div class="readout">
+        <div class="lbl">TOP TIE LINES THIS HOUR</div>
+        <div id="ties"></div>
+      </div>
+      <div class="readout legend">
+        <div class="lbl">LEGEND</div>
+        <div class="it"><span class="dot" style="background:var(--green)"></span>Net exporter (sends power out)</div>
+        <div class="it"><span class="dot" style="background:var(--amber)"></span>Net importer (takes power in)</div>
+        <div class="it"><span class="dot" style="background:var(--neutral)"></span>Balanced, or no demand data</div>
+        <div class="it"><span class="sz"><span style="width:6px;height:6px"></span><span style="width:11px;height:11px"></span><span style="width:16px;height:16px"></span></span>Dot area grows with demand</div>
+        <div class="it"><span class="pt"></span>More particles, faster: more MW</div>
+        <div class="it"><span class="dot" style="background:transparent;border:1px solid var(--green)"></span>Ring beats faster near peak load</div>
+      </div>
+      <div class="src">
+        SOURCE: U.S. Energy Information Administration, Form EIA-930 Hourly Electric Grid Monitor (interchange and balance, 2024) and Form EIA-860 (plant coordinates, 2024). Four sample weeks, one per season.
+        <a href="README.md">README</a>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="controls">
+    <div class="ctl-row">
+      <div class="group" id="seasons"><span class="lbl">SEASON</span></div>
+      <div class="group">
+        <button class="chunk run" id="play"><span class="led"></span><span id="playlab">HOLD</span></button>
+        <button class="step" id="back" title="One hour back">&#9664;</button>
+        <button class="step" id="fwd" title="One hour forward">&#9654;</button>
+      </div>
+      <div class="group">
+        <span class="lbl">RATE</span>
+        <div class="dial" id="dial" role="button" tabindex="0" title="Playback rate"></div>
+        <span class="dial-lab" id="diallab">1 h / 2 s</span>
+      </div>
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="167" step="1" value="0" aria-label="Hour of the week">
+        <div class="days"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  'use strict';
+  const FUEL_ORDER = ['coal', 'nuclear', 'gas', 'wind', 'solar', 'hydro', 'other'];
+  const FUEL_COLOR = { coal: '#e66767', nuclear: '#9085e9', gas: '#d95926', wind: '#199e70', solar: '#c98500', hydro: '#3987e5', other: '#008300' };
+  const FUEL_NAME = { coal: 'COAL', nuclear: 'NUCLEAR', gas: 'GAS', wind: 'WIND', solar: 'SOLAR', hydro: 'HYDRO', other: 'OTHER' };
+  const RATES = [{ hps: 0.25, lab: '1 h / 4 s', rot: -40 }, { hps: 0.5, lab: '1 h / 2 s', rot: 0 }, { hps: 1.5, lab: '1 h / 0.7 s', rot: 40 }];
+  const PULSE_MW = 2500;
+  const HOURS = 168;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v) => (v === null || v === undefined || isNaN(v)) ? '---' : Math.round(v).toLocaleString('en-US');
+
+  // ------------------------------------------------------------ state
+  let data = null;        // grid.json
+  let us = null;          // lower 48 feature collection
+  let season = 2;         // index into data.seasons, summer first
+  let tau = 0;            // fractional hour inside the week
+  let playing = true;
+  let rateIx = 1;
+  let lastTs = null;
+  let lastHour = -1;
+  let hovered = -1;
+  let totals = {};        // per season: {demand[], gen[], ti[], fuel{...}}
+  let maxDemandAll = 1, maxSolarAll = 1, maxWindAll = 1, minDemandAll = 1e12, maxDemandSum = 1;
+  let baPeak = [];        // per BA: weekly peak demand over all seasons
+
+  // ------------------------------------------------------------ canvas
+  const scope = $('scope'), canvas = $('map'), ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1, projection = null, staticLayer = null;
+  let pos = [];           // projected BA positions
+  let arcs = [];          // per pair: {x0,y0,cx,cy,x1,y1,len,lon}
+  const particles = [];   // per pair: array of {t, j}
+
+  function resize() {
+    const r = scope.getBoundingClientRect();
+    W = Math.max(200, Math.floor(r.width));
+    H = Math.max(200, Math.floor(r.height));
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    if (!data || !us) return;
+    const narrow = W < 700;
+    const top = narrow ? 16 : 26;
+    projection = d3.geoAlbers().fitExtent([[10, top], [W - 10, H - 12]], us);
+    pos = data.bas.map(b => projection([b.lon, b.lat]) || [-100, -100]);
+    arcs = data.pairs.map(([i, j]) => {
+      const [x0, y0] = pos[i], [x1, y1] = pos[j];
+      const dx = x1 - x0, dy = y1 - y0;
+      const cx = (x0 + x1) / 2 - dy * 0.18, cy = (y0 + y1) / 2 + dx * 0.18;
+      let len = 0, px = x0, py = y0;
+      for (let k = 1; k <= 16; k++) {
+        const t = k / 16, mt = 1 - t;
+        const x = mt * mt * x0 + 2 * mt * t * cx + t * t * x1;
+        const y = mt * mt * y0 + 2 * mt * t * cy + t * t * y1;
+        len += Math.hypot(x - px, y - py); px = x; py = y;
+      }
+      return { x0, y0, cx, cy, x1, y1, len: Math.max(1, len), lon: (data.bas[i].lon + data.bas[j].lon) / 2 };
+    });
+    buildStatic();
+  }
+
+  function buildStatic() {
+    staticLayer = document.createElement('canvas');
+    staticLayer.width = canvas.width; staticLayer.height = canvas.height;
+    const c = staticLayer.getContext('2d');
+    c.scale(DPR, DPR);
+    const path = d3.geoPath(projection, c);
+    c.beginPath(); path(us); c.fillStyle = '#0b130e'; c.fill();
+    c.beginPath(); path(topojson.mesh(window.__topo, window.__states, (a, b) => a !== b));
+    c.strokeStyle = '#22402f'; c.lineWidth = 0.7; c.stroke();
+    c.beginPath(); path(topojson.mesh(window.__topo, window.__states, (a, b) => a === b));
+    c.strokeStyle = 'rgba(57,255,138,.45)'; c.lineWidth = 1; c.shadowColor = 'rgba(57,255,138,.6)'; c.shadowBlur = 8; c.stroke();
+    c.shadowBlur = 0;
+    // faint arcs of every tie line
+    c.strokeStyle = 'rgba(57,255,138,.10)'; c.lineWidth = 0.8;
+    for (const a of arcs) { c.beginPath(); c.moveTo(a.x0, a.y0); c.quadraticCurveTo(a.cx, a.cy, a.x1, a.y1); c.stroke(); }
+  }
+
+  // ------------------------------------------------------------ data helpers
+  function lerpAt(arr, t) {
+    const h = Math.min(HOURS - 1, Math.max(0, Math.floor(t)));
+    const h2 = Math.min(HOURS - 1, h + 1), f = t - h;
+    const a = arr[h], b = arr[h2];
+    if (a === null && b === null) return null;
+    if (a === null) return b;
+    if (b === null) return a;
+    return a + (b - a) * f;
+  }
+  function sumSeries(rows) {
+    const out = new Array(HOURS).fill(0);
+    for (const r of rows) for (let h = 0; h < HOURS; h++) if (r[h] !== null) out[h] += r[h];
+    return out;
+  }
+  function prepare() {
+    const nb = data.bas.length;
+    baPeak = new Array(nb).fill(0);
+    for (const s of data.seasons) {
+      const S = data.series[s.key];
+      const t = { demand: sumSeries(S.demand), gen: sumSeries(S.gen), ti: sumSeries(S.ti), fuel: {} };
+      for (const f of data.fuels) t.fuel[f] = sumSeries(S[f]);
+      totals[s.key] = t;
+      maxDemandSum = Math.max(maxDemandSum, ...t.demand);
+      minDemandAll = Math.min(minDemandAll, ...t.demand.filter(v => v > 0));
+      maxSolarAll = Math.max(maxSolarAll, ...t.fuel.solar);
+      maxWindAll = Math.max(maxWindAll, ...t.fuel.wind);
+      for (let i = 0; i < nb; i++) {
+        const m = Math.max(0, ...S.demand[i].map(v => v === null ? 0 : v));
+        baPeak[i] = Math.max(baPeak[i], m);
+        maxDemandAll = Math.max(maxDemandAll, m);
+      }
+    }
+    for (let k = 0; k < data.pairs.length; k++) particles.push([]);
+  }
+
+  // ------------------------------------------------------------ drawing
+  function tint(ti, demand) {
+    if (ti === null || demand === null || demand <= 0) return { r: 138, g: 160, b: 146 };
+    const k = Math.min(1, Math.abs(ti) / (0.25 * demand + 150));
+    const base = [138, 160, 146];
+    const hue = ti > 0 ? [57, 255, 138] : [255, 179, 71];
+    return { r: base[0] + (hue[0] - base[0]) * k, g: base[1] + (hue[1] - base[1]) * k, b: base[2] + (hue[2] - base[2]) * k };
+  }
+  function bez(a, t) {
+    const mt = 1 - t;
+    return [mt * mt * a.x0 + 2 * mt * t * a.cx + t * t * a.x1, mt * mt * a.y0 + 2 * mt * t * a.cy + t * t * a.y1];
+  }
+
+  function draw(dt, now) {
+    if (!staticLayer) return;
+    const S = data.series[data.seasons[season].key];
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(staticLayer, 0, 0, W, H);
+    const sizeK = Math.min(1, W / 900) * 0.6 + 0.4;
+
+    // tie lines and particles
+    ctx.globalCompositeOperation = 'lighter';
+    let liveCount = 0;
+    for (let k = 0; k < arcs.length; k++) {
+      const mw = lerpAt(S.flow[k], tau);
+      const a = arcs[k], pool = particles[k];
+      if (mw === null || Math.abs(mw) < 15) { pool.length = 0; continue; }
+      const amw = Math.abs(mw);
+      const target = Math.min(32, Math.round(Math.sqrt(amw) * 0.42 * sizeK));
+      while (pool.length < target) pool.push({ t: Math.random(), j: 0.8 + Math.random() * 0.4 });
+      if (pool.length > target) pool.length = target;
+      const speed = (28 + 120 * Math.min(1, amw / 3000)) * sizeK;
+      const dir = mw > 0 ? 1 : -1;
+      const tail = Math.min(0.25, 7 / a.len);
+      const alpha = 0.35 + 0.55 * Math.min(1, amw / 2000);
+      ctx.strokeStyle = `rgba(57,255,138,${alpha.toFixed(3)})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      // faint active arc
+      ctx.moveTo(a.x0, a.y0); ctx.quadraticCurveTo(a.cx, a.cy, a.x1, a.y1);
+      ctx.strokeStyle = `rgba(57,255,138,${(0.05 + 0.12 * Math.min(1, amw / 3000)).toFixed(3)})`; ctx.stroke();
+      ctx.strokeStyle = `rgba(57,255,138,${alpha.toFixed(3)})`;
+      ctx.beginPath();
+      for (const p of pool) {
+        p.t += dir * speed * p.j * dt / a.len;
+        p.t = ((p.t % 1) + 1) % 1;
+        const t0 = Math.max(0, Math.min(1, p.t - dir * tail));
+        const [xa, ya] = bez(a, t0), [xb, yb] = bez(a, p.t);
+        ctx.moveTo(xa, ya); ctx.lineTo(xb, yb);
+      }
+      ctx.stroke();
+      liveCount += pool.length;
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // nodes
+    const labels = [];
+    for (let i = 0; i < data.bas.length; i++) {
+      const [x, y] = pos[i];
+      const d = lerpAt(S.demand[i], tau), ti = lerpAt(S.ti[i], tau);
+      const r = (2.6 + 22 * Math.sqrt((d || 0) / maxDemandAll)) * sizeK;
+      const c = tint(ti, d);
+      const col = `rgb(${c.r | 0},${c.g | 0},${c.b | 0})`;
+      if (d && baPeak[i] > 0) {
+        // pulse ring, rate from the load factor of this hour
+        const lf = d / baPeak[i];
+        const f = 0.25 + 1.1 * lf * lf;
+        const ph = (now * f) % 1;
+        ctx.beginPath(); ctx.arc(x, y, r * (1.1 + 0.6 * ph), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${c.r | 0},${c.g | 0},${c.b | 0},${(0.45 * (1 - ph)).toFixed(3)})`;
+        ctx.lineWidth = 1; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      if (d) {
+        ctx.fillStyle = col; ctx.globalAlpha = 0.88;
+        ctx.shadowColor = col; ctx.shadowBlur = i === hovered ? 18 : 8;
+        ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      } else {
+        ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+      if (i === hovered) { ctx.beginPath(); ctx.arc(x, y, r + 4, 0, Math.PI * 2); ctx.strokeStyle = '#d8ffe6'; ctx.lineWidth = 1; ctx.stroke(); }
+      const narrow = W < 700;
+      const showLabel = i === hovered || (narrow ? r > 12 : (r > 9 * sizeK + 2 || data.bas[i].foreign));
+      if (showLabel) labels.push({ x: x + r + 3, y: y + 4, s: data.bas[i].code, big: r > 12 });
+    }
+    ctx.font = `11px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textBaseline = 'alphabetic';
+    for (const l of labels) {
+      ctx.fillStyle = 'rgba(5,8,6,.7)';
+      const w = ctx.measureText(l.s).width;
+      ctx.fillRect(l.x - 2, l.y - 10, w + 4, 13);
+      ctx.fillStyle = l.big ? '#d8ffe6' : '#9fb8a8';
+      ctx.fillText(l.s, l.x, l.y);
+    }
+    $('status').textContent = playing ? 'RUN' : 'HOLD';
+    $('pcount').textContent = ` // ${liveCount} PARTICLES`;
+  }
+
+  // ------------------------------------------------------------ readouts
+  const fmtDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const fmtUTC = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
+  const fmtET = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' });
+  const fmtPT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Los_Angeles' });
+  let fuelRows = null, stackEls = null, lastRead = 0;
+
+  function buildPanels() {
+    const seasonsEl = $('seasons');
+    data.seasons.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.className = 'rocker' + (i === season ? ' on' : '');
+      b.innerHTML = `<span class="led"></span>${s.label.toUpperCase()}`;
+      b.title = `Week of ${s.start_local}`;
+      b.addEventListener('click', () => setSeason(i));
+      seasonsEl.appendChild(b);
+    });
+    const fuelsEl = $('fuels'), stack = $('stack');
+    fuelRows = {}; stackEls = {};
+    for (const f of FUEL_ORDER) {
+      const row = document.createElement('div');
+      row.className = 'fuelrow';
+      row.innerHTML = `<span class="sw" style="background:${FUEL_COLOR[f]}"></span><span>${FUEL_NAME[f]}</span><span class="bar"><i style="background:${FUEL_COLOR[f]}"></i></span><span class="mw">---</span><span class="pc">--%</span>`;
+      fuelsEl.appendChild(row);
+      fuelRows[f] = { bar: row.querySelector('i'), mw: row.querySelector('.mw'), pc: row.querySelector('.pc') };
+      const seg = document.createElement('i'); seg.style.background = FUEL_COLOR[f]; seg.style.width = '0%';
+      stack.appendChild(seg); stackEls[f] = seg;
+    }
+  }
+
+  function readouts(force) {
+    const t = performance.now();
+    if (!force && t - lastRead < 120) return;
+    lastRead = t;
+    const sk = data.seasons[season];
+    const T = totals[sk.key];
+    const date = new Date(Date.parse(sk.start_utc) + tau * 3600e3);
+    $('clock1').textContent = fmtDay.format(date).toUpperCase().replace(',', '');
+    $('clock2').textContent = `${fmtUTC.format(date)} UTC  //  ET ${fmtET.format(date)}  //  PT ${fmtPT.format(date)}`;
+    const dem = lerpAt(T.demand, tau), gen = lerpAt(T.gen, tau), ti = lerpAt(T.ti, tau);
+    $('demand').innerHTML = `${fmt(dem)}<small>MW</small>`;
+    $('gen').textContent = fmt(gen) + ' MW';
+    const imp = $('imp');
+    imp.textContent = fmt(-ti) + ' MW';
+    imp.className = 'val ' + (ti < -200 ? 'neg' : ti > 200 ? 'pos' : '');
+    let tot = 0; const vals = {};
+    for (const f of FUEL_ORDER) { vals[f] = Math.max(0, lerpAt(T.fuel[f], tau) || 0); tot += vals[f]; }
+    const maxF = Math.max(1, ...FUEL_ORDER.map(f => vals[f]));
+    for (const f of FUEL_ORDER) {
+      const pc = tot ? vals[f] / tot * 100 : 0;
+      fuelRows[f].bar.style.width = (vals[f] / maxF * 100).toFixed(1) + '%';
+      fuelRows[f].mw.textContent = fmt(vals[f]);
+      fuelRows[f].pc.textContent = pc.toFixed(0) + '%';
+      stackEls[f].style.width = pc.toFixed(2) + '%';
+    }
+    // top ties at the current hour
+    const S = data.series[sk.key];
+    const h = Math.min(HOURS - 1, Math.floor(tau));
+    const top = [];
+    for (let k = 0; k < data.pairs.length; k++) {
+      const v = S.flow[k][h];
+      if (v !== null) top.push([Math.abs(v), k, v]);
+    }
+    top.sort((a, b) => b[0] - a[0]);
+    $('ties').innerHTML = top.slice(0, 5).map(([, k, v]) => {
+      const [i, j] = data.pairs[k];
+      const from = v > 0 ? data.bas[i].code : data.bas[j].code, to = v > 0 ? data.bas[j].code : data.bas[i].code;
+      return `<div class="tie"><span><span class="lab">${from}</span> <span class="dir">&rarr;</span> <span class="lab">${to}</span></span><span class="mw">${fmt(Math.abs(v))}</span></div>`;
+    }).join('');
+    $('scrub').value = h;
+  }
+
+  // ------------------------------------------------------------ controls
+  function setSeason(i) {
+    season = i;
+    document.querySelectorAll('#seasons .rocker').forEach((b, k) => b.classList.toggle('on', k === i));
+    for (const p of particles) p.length = 0;
+    lastHour = -1;
+    readouts(true);
+  }
+  function setPlaying(p) {
+    playing = p;
+    $('play').classList.toggle('run', p);
+    $('playlab').textContent = p ? 'HOLD' : 'RUN';
+  }
+  function setRate(i) {
+    rateIx = i;
+    $('dial').style.setProperty('--rot', RATES[i].rot + 'deg');
+    $('diallab').textContent = RATES[i].lab;
+  }
+  $('play').addEventListener('click', () => setPlaying(!playing));
+  $('back').addEventListener('click', () => { setPlaying(false); tau = (Math.floor(tau) - 1 + HOURS) % HOURS; readouts(true); });
+  $('fwd').addEventListener('click', () => { setPlaying(false); tau = (Math.floor(tau) + 1) % HOURS; readouts(true); });
+  $('dial').addEventListener('click', () => setRate((rateIx + 1) % RATES.length));
+  $('dial').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRate((rateIx + 1) % RATES.length); } });
+  $('scrub').addEventListener('input', (e) => { tau = +e.target.value; setPlaying(false); readouts(true); });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+    if (e.key === 'ArrowLeft') $('back').click();
+    if (e.key === 'ArrowRight') $('fwd').click();
+  });
+
+  // hover
+  const tip = $('tip');
+  function pick(mx, my) {
+    let best = -1, bd = 24 * 24;
+    for (let i = 0; i < pos.length; i++) {
+      const dx = pos[i][0] - mx, dy = pos[i][1] - my, d2 = dx * dx + dy * dy;
+      if (d2 < bd) { bd = d2; best = i; }
+    }
+    return best;
+  }
+  function showTip(i, mx, my) {
+    hovered = i;
+    if (i < 0) { tip.style.display = 'none'; return; }
+    const b = data.bas[i], S = data.series[data.seasons[season].key];
+    const d = lerpAt(S.demand[i], tau), g = lerpAt(S.gen[i], tau), ti = lerpAt(S.ti[i], tau);
+    const fuels = FUEL_ORDER.map(f => [f, lerpAt(S[f], tau) || 0]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    tip.innerHTML = `<h4>${b.code}</h4><span class="nm">${b.name}</span><table>
+      <tr><td>Demand</td><td class="v">${fmt(d)} MW</td></tr>
+      <tr><td>Net generation</td><td class="v">${fmt(g)} MW</td></tr>
+      <tr><td>${ti === null ? 'Interchange' : ti >= 0 ? 'Exports' : 'Imports'}</td><td class="v">${fmt(ti === null ? null : Math.abs(ti))} MW</td></tr>
+      ${fuels.map(([f, v]) => `<tr><td style="color:${FUEL_COLOR[f]}">${FUEL_NAME[f]}</td><td class="v">${fmt(v)} MW</td></tr>`).join('')}
+      ${b.foreign ? '<tr><td colspan="2" style="color:var(--text2)">Outside the US. Drawn at the border crossing.</td></tr>' : ''}
+    </table>`;
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.max(4, Math.min(W - tw - 4, mx + 14)) + 'px';
+    tip.style.top = Math.max(4, Math.min(H - th - 4, my - th / 2)) + 'px';
+  }
+  canvas.addEventListener('mousemove', (e) => { const r = canvas.getBoundingClientRect(); showTip(pick(e.clientX - r.left, e.clientY - r.top), e.clientX - r.left, e.clientY - r.top); });
+  canvas.addEventListener('mouseleave', () => showTip(-1));
+  canvas.addEventListener('click', (e) => { const r = canvas.getBoundingClientRect(); showTip(pick(e.clientX - r.left, e.clientY - r.top), e.clientX - r.left, e.clientY - r.top); });
+
+  // ------------------------------------------------------------ sound
+  const audio = { ctx: null };
+  function setupSound(ac, master) {
+    if (!ac) return;
+    audio.ctx = ac;
+    const bus = ac.createGain(); bus.gain.value = 1;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800; lp.Q.value = 0.5;
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.knee.value = 18; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.3;
+    bus.connect(lp); lp.connect(comp); comp.connect(master);
+    // space: convolver with a generated noise impulse response
+    const irLen = Math.floor(ac.sampleRate * 2.4);
+    const ir = ac.createBuffer(2, irLen, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3.2);
+    }
+    const conv = ac.createConvolver(); conv.buffer = ir;
+    const wet = ac.createGain(); wet.gain.value = 0.3;
+    bus.connect(conv); conv.connect(wet); wet.connect(lp);
+
+    // hum: three oscillators, pitch follows total demand
+    const humGain = ac.createGain(); humGain.gain.value = 0;
+    const humFilter = ac.createBiquadFilter(); humFilter.type = 'lowpass'; humFilter.frequency.value = 300; humFilter.Q.value = 1.6;
+    const o1 = ac.createOscillator(); o1.type = 'sawtooth';
+    const o2 = ac.createOscillator(); o2.type = 'sine';
+    const o3 = ac.createOscillator(); o3.type = 'triangle';
+    const g2 = ac.createGain(); g2.gain.value = 0.7;
+    const g3 = ac.createGain(); g3.gain.value = 0.35;
+    o1.connect(humFilter); o2.connect(g2); g2.connect(humFilter); o3.connect(g3); g3.connect(humFilter);
+    humFilter.connect(humGain); humGain.connect(bus);
+    o1.start(); o2.start(); o3.start();
+    humGain.gain.setTargetAtTime(0.11, ac.currentTime, 1.5);
+
+    // wind: filtered noise, level follows wind generation
+    const nLen = ac.sampleRate * 2;
+    const nb = ac.createBuffer(1, nLen, ac.sampleRate);
+    const nd = nb.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < nLen; i++) {       // pink-ish noise
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99765 * b0 + w * 0.0990460; b1 = 0.96300 * b1 + w * 0.2965164; b2 = 0.57000 * b2 + w * 1.0526913;
+      nd[i] = (b0 + b1 + b2 + w * 0.1848) * 0.12;
+    }
+    const noise = ac.createBufferSource(); noise.buffer = nb; noise.loop = true;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.8;
+    const windGain = ac.createGain(); windGain.gain.value = 0;
+    const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.09;
+    const lfoG = ac.createGain(); lfoG.gain.value = 180;
+    lfo.connect(lfoG); lfoG.connect(bp.frequency); lfo.start();
+    noise.connect(bp); bp.connect(windGain); windGain.connect(bus); noise.start();
+
+    audio.bus = bus; audio.o1 = o1; audio.o2 = o2; audio.o3 = o3; audio.humFilter = humFilter; audio.windGain = windGain; audio.bp = bp;
+  }
+  function updateSound() {
+    const ac = audio.ctx; if (!ac) return;
+    const T = totals[data.seasons[season].key];
+    const dem = lerpAt(T.demand, tau) || minDemandAll;
+    const norm = Math.max(0, Math.min(1, (dem - minDemandAll) / (maxDemandSum - minDemandAll)));
+    const f = 44 + 50 * norm;
+    const t = ac.currentTime;
+    audio.o1.frequency.setTargetAtTime(f, t, 0.3);
+    audio.o2.frequency.setTargetAtTime(f / 2, t, 0.3);
+    audio.o3.frequency.setTargetAtTime(f * 2.003, t, 0.3);
+    const solar = Math.max(0, lerpAt(T.fuel.solar, tau) || 0) / maxSolarAll;
+    audio.humFilter.frequency.setTargetAtTime(160 + 2400 * solar, t, 0.4);
+    const wind = Math.max(0, lerpAt(T.fuel.wind, tau) || 0) / maxWindAll;
+    audio.windGain.gain.setTargetAtTime(0.16 * wind, t, 0.6);
+    audio.bp.frequency.setTargetAtTime(450 + 900 * wind, t, 0.6);
+  }
+  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
+  function hourPulses(h) {
+    const ac = audio.ctx; if (!ac || !playing) return;
+    const S = data.series[data.seasons[season].key];
+    const hits = [];
+    for (let k = 0; k < data.pairs.length; k++) {
+      const v = S.flow[k][h];
+      if (v !== null && Math.abs(v) >= PULSE_MW) hits.push([Math.abs(v), k]);
+    }
+    hits.sort((a, b) => b[0] - a[0]);
+    const slot = 1 / RATES[rateIx].hps;
+    hits.slice(0, 6).forEach(([amw, k], n) => {
+      const t0 = ac.currentTime + 0.05 + n * Math.min(0.14, slot / 8);
+      const midi = 55 + PENTA[k % PENTA.length];
+      const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t0);
+      const peak = 0.05 + 0.06 * Math.min(1, (amw - PULSE_MW) / 4000);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+      const pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      o.connect(g);
+      if (pan) { pan.pan.value = Math.max(-1, Math.min(1, (arcs[k].lon + 96) / 26)); g.connect(pan); pan.connect(audio.bus); }
+      else g.connect(audio.bus);
+      o.start(t0); o.stop(t0 + 1.2);
+    });
+    // soft clock tick every hour
+    const tk = ac.createOscillator(); tk.type = 'triangle'; tk.frequency.value = 1320;
+    const tg = ac.createGain(); const t1 = ac.currentTime + 0.01;
+    tg.gain.setValueAtTime(0.0001, t1); tg.gain.exponentialRampToValueAtTime(0.025, t1 + 0.004); tg.gain.exponentialRampToValueAtTime(0.0001, t1 + 0.06);
+    tk.connect(tg); tg.connect(audio.bus); tk.start(t1); tk.stop(t1 + 0.08);
+  }
+
+  // ------------------------------------------------------------ loop
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!data || !us) return;
+    const dt = lastTs === null ? 0.016 : Math.min(0.1, (ts - lastTs) / 1000);
+    lastTs = ts;
+    if (playing) {
+      tau += dt * RATES[rateIx].hps;
+      if (tau >= HOURS - 1) tau = 0;
+    }
+    const h = Math.floor(tau);
+    if (h !== lastHour) { lastHour = h; hourPulses(h); }
+    draw(dt, ts / 1000);
+    readouts(false);
+    updateSound();
+  }
+
+  // ------------------------------------------------------------ boot
+  Promise.all([
+    fetch('data/grid.json').then(r => r.json()),
+    fetch('https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json').then(r => r.json())
+  ]).then(([g, topo]) => {
+    data = g;
+    window.__topo = topo;
+    // Keep the lower 48 states and DC: FIPS codes up to 56, without Alaska (02) and Hawaii (15).
+    const keep = (id) => +id <= 56 && id !== '02' && id !== '15';
+    window.__states = { type: 'GeometryCollection', geometries: topo.objects.states.geometries.filter(g => keep(g.id)) };
+    const feats = topojson.feature(topo, window.__states).features;
+    us = { type: 'FeatureCollection', features: feats };
+    prepare();
+    buildPanels();
+    setRate(rateIx);
+    resize();
+    readouts(true);
+    $('status').textContent = 'READY';
+  }).catch((err) => {
+    $('status').textContent = 'DATA FAULT';
+    $('led').classList.add('amber');
+    console.warn('load failed', err);
+  });
+  new ResizeObserver(() => resize()).observe(scope);
+
+  Gallery.mount({
+    slug: 'grid-flow',
+    title: 'The Grid Breathes',
+    blurb: 'Hourly power flows between US balancing authorities, four sample weeks of 2024. Dots breathe with demand, particles carry the megawatts, and the hum follows the load.',
+    onStart(ac, master) {
+      setupSound(ac, master);
+      setPlaying(true);
+      requestAnimationFrame(frame);
+    }
+  });
+})();
+</script>
+</body>
+</html>
