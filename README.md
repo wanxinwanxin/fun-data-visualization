@@ -1,4 +1,4 @@
-# Thirteen Rooms
+# Data Art Galleries
 
 A gallery of animated and sonified visualizations. Each room uses one public data set. Each room has its own visual style and its own sound design.
 

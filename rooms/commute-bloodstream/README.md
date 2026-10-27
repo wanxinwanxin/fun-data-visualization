@@ -1,6 +1,6 @@
 # The Commute Bloodstream
 
-Room 03 of Thirteen Rooms. The room shows the daily commute of the Chicago area as particle streams. Each particle is a group of 20 workers. The particles move from the tract where the workers live to the tract where they work in the morning. They move back in the evening. The page is white, the marks are black, and the accent color is red.
+Room 03 of Data Art Galleries. The room shows the daily commute of the Chicago area as particle streams. Each particle is a group of 20 workers. The particles move from the tract where the workers live to the tract where they work in the morning. They move back in the evening. The page is white, the marks are black, and the accent color is red.
 
 ## Sources
 

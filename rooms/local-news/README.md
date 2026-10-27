@@ -1,6 +1,6 @@
 # What the County Worried About
 
-A halftone map of the words that US newspapers printed, by state and by decade, from 1800 to 1963. The room is one of the Thirteen Rooms gallery.
+A halftone map of the words that US newspapers printed, by state and by decade, from 1800 to 1963. The room is one of the Data Art Galleries rooms.
 
 ## Source
 
