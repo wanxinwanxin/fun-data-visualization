@@ -11,5 +11,6 @@
   {"slug": "wiki-attention", "title": "Where Curiosity Goes", "idea": "Reader paths between Wikipedia articles (Clickstream)", "style": "Playful: bright pastel, rounded shapes, bouncy easing, marimba sound"},
   {"slug": "patent-drift", "title": "Where Ideas Come From", "idea": "Patent citation flow between technology fields (PatentsView)", "style": "Blueprint: white lines on blue, drafted streamgraph, pencil sound"},
   {"slug": "builder-market", "title": "The Builder Market", "idea": "Ethereum block builder share per slot as a time-lapse", "style": "Terminal ticker: neon on black, ridge plot, synth arpeggio"},
-  {"slug": "bridge-flows", "title": "Liquidity in Motion", "idea": "Cross-chain bridge volume as an animated chord diagram", "style": "Glass: soft gradients, blur, glossy shapes, chime sound"}
+  {"slug": "bridge-flows", "title": "Liquidity in Motion", "idea": "Cross-chain bridge volume as an animated chord diagram", "style": "Glass: soft gradients, blur, glossy shapes, chime sound"},
+  {"slug": "treasury-machine", "title": "The Treasury Machine", "idea": "Federal receipts and outlays 1789-2025 (OMB, Census, Treasury) as a hydraulic machine", "style": "Hydraulic schematic: engineering paper, condensed type, pipes sized in percent of GDP, a debt tank, noise bed and drone"}
 ]

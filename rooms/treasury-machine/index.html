@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Treasury Machine</title>
+<meta name="description" content="Federal receipts and outlays from 1789 to 2025 as a hydraulic machine: income pipes fill a tank, spending pipes drain it, and the tank level is the debt.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  /* Style: a MONIAC hydraulic schematic on pale engineering paper. Single theme by choice. */
+  :root {
+    --bg: #dfe5e9; --panel: #eef1f3; --ink: #13232f; --muted: #5b6b78; --line: #b9c5cd;
+    --water: #1b7f9e; --debt: #c2443a; --debt2: #e39a8f; --brass: #8b6f3e;
+    --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+    --font-body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; padding: 0 max(16px, env(safe-area-inset-left, 0px)) 72px max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 1220px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  header { padding-top: 26px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 5vw, 56px); line-height: .95; margin: 0; letter-spacing: .01em; text-transform: uppercase; }
+  .lede { margin: 6px 0 0; max-width: 64ch; color: var(--muted); }
+  .stamp { font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); border: 1px solid var(--brass); padding: 3px 8px; border-radius: 3px; align-self: flex-start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .btn { font: inherit; font-family: var(--font-display); font-weight: 600; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 16px; border: 1px solid var(--ink); background: var(--ink); color: var(--panel); border-radius: 4px; cursor: pointer; }
+  .btn:focus-visible, .seg button:focus-visible, input[type=range]:focus-visible { outline: 2px solid var(--water); outline-offset: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button { font: inherit; font-family: var(--font-display); font-size: 15px; font-weight: 600; padding: 5px 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--water); color: #fff; }
+  .scrub { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+  .scrub input { flex: 1; min-width: 0; accent-color: var(--water); }
+  .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+  .ro { display: flex; flex-direction: column; min-width: 0; }
+  .ro .k { font-family: var(--font-display); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .ro .v { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.05; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ro .v.year { font-size: 44px; }
+  .ro .s { font-family: var(--font-display); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ro .v.neg { color: var(--debt); } .ro .v.pos { color: var(--water); }
+  .stage { overflow-x: auto; padding: 4px 0 8px; }
+  canvas { display: block; width: 100%; min-width: 1000px; height: auto; }
+  h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 24px; font-size: 14px; color: var(--muted); }
+  .notes p { margin: 0; } .notes b { color: var(--ink); font-weight: 600; }
+  a { color: var(--water); }
+  @media (prefers-reduced-motion: reduce) { .btn { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>The Treasury Machine</h1>
+      <p class="lede">Federal receipts and outlays, fiscal years 1789 to 2025, as a hydraulic machine. Income flows in from the left, sized to scale. Spending drains out to the right and splits into programs. The tank in the middle is the balance sheet: red below the zero line is debt held by the public. Every width and every level is in percent of GDP.</p>
+    </div>
+    <span class="stamp">Room 14 · OMB, Census, Treasury</span>
+  </header>
+
+  <div class="panel controls">
+    <button class="btn" id="play" aria-pressed="false">Play from 1789</button>
+    <div class="seg" role="group" aria-label="Speed">
+      <button data-s="0.5" aria-pressed="false">½×</button>
+      <button data-s="1" aria-pressed="true">1×</button>
+      <button data-s="3" aria-pressed="false">3×</button>
+      <button data-s="10" aria-pressed="false">10×</button>
+    </div>
+    <div class="scrub"><input type="range" id="year" min="1789" max="2025" step="0.05" value="2025" aria-label="Fiscal year"></div>
+  </div>
+
+  <div class="panel readout">
+    <div class="ro"><span class="k">Fiscal year</span><span class="v year" id="rYear">2025</span><span class="s" id="rBasis"></span></div>
+    <div class="ro"><span class="k">Receipts</span><span class="v pos" id="rIn">–</span><span class="s" id="rInD"></span></div>
+    <div class="ro"><span class="k">Outlays</span><span class="v" id="rOut">–</span><span class="s" id="rOutD"></span></div>
+    <div class="ro"><span class="k">Balance this year</span><span class="v" id="rBal">–</span><span class="s" id="rBalD"></span></div>
+    <div class="ro"><span class="k">Debt held by the public</span><span class="v" id="rLvl">–</span><span class="s" id="rLvlD"></span></div>
+  </div>
+
+  <div class="panel stage"><canvas id="c" width="1240" height="660" aria-label="Animated flow of federal receipts and outlays"></canvas></div>
+
+  <div class="panel">
+    <h2>Reading the machine</h2>
+    <div class="notes">
+      <p><b>Trade surplus is not revenue.</b> The trade balance belongs to the national accounts. The only trade money the Treasury receives is customs duties, so that is the stream shown.</p>
+      <p><b>Interest flows both ways.</b> Net interest on the debt is an outlay on the right. Interest the government earns, and Federal Reserve remittances, are small streams inside "Other receipts" on the left.</p>
+      <p><b>The tank is debt held by the public.</b> From 1940 a lighter band on top shows debt held by government accounts, mostly the Social Security trust funds. Before 1940 the Treasury series is gross debt, and the two were nearly the same.</p>
+      <p><b>Programs appear when the data splits them.</b> Receipts by source start in 1934, outlays by function in 1940, and by program in 1962. Before those years the machine shows the Census Bureau series: customs, internal revenue, Army, Navy, interest, pensions.</p>
+      <p><b>Seams.</b> GDP before 1940 is a calendar-year estimate (MeasuringWorth). The fiscal year ran July to June until 1976. New Deal relief sits inside "Everything else" until 1940, because the function split starts in 1940.</p>
+      <p><b>Sound.</b> A noise bed swells with the total flow. A drone drops in pitch as the tank sinks. A tick marks each fiscal year. Sources and method: <a href="README.md">README</a>.</p>
+    </div>
+  </div>
+</div>
+
+<script src="../../shared/room.js"></script>
+<script>
+(function () {
+  const Y0 = 1789, Y1 = 2025;
+  const INORDER = ["individual", "payroll", "corporate", "excise", "customs", "other"];
+  const OUTORDER = ["defense", "social_security", "health", "income_security", "interest", "veterans", "other"];
+  const COLORS = { individual: "#1f7a46", payroll: "#2b86a0", corporate: "#9fc47f", excise: "#3f9a82", customs: "#8a9a3c", other: "#b3bf9e",
+    defense: "#3f5f95", social_security: "#5747a3", health: "#9a3f74", income_security: "#7a8fc4", interest: "#86829c", veterans: "#b06d96", other_out: "#b7bccb" };
+  const EVENTS = [[1812, "War of 1812"], [1835, "Debt paid off"], [1861, "Civil War"], [1913, "Income tax"], [1917, "World War I"], [1935, "Social Security"], [1942, "World War II"], [1965, "Medicare"], [1981, "Reagan"], [2008, "Crisis"], [2020, "Pandemic"]];
+
+  const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+  const W = 1240, H = 660, K = 2.4, ZY = 236;
+  const TANK = { x: 545, w: 150, top: ZY - 12 * K, bot: ZY + 130 * K };
+  const COL = { subL: 205, catL: 380, catR: 820, subR: 985 };
+  const BAR = 10, GAP = 6, SUBGAP = 4, MINSLOT = 13, CATSLOT = 34;
+  const css = {}; (function () { const s = getComputedStyle(document.documentElement); ["bg", "panel", "ink", "muted", "line", "water", "debt", "debt2", "brass"].forEach(k => css[k] = s.getPropertyValue("--" + k).trim()); })();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  let D = null;            // the ledger
+  let year = Y1, playing = false, speed = 1, last = performance.now(), entered = false;
+  const yrIn = document.getElementById("year"), playBtn = document.getElementById("play");
+  const ro = {}; ["rYear", "rBasis", "rIn", "rInD", "rOut", "rOutD", "rBal", "rBalD", "rLvl", "rLvlD"].forEach(id => ro[id] = document.getElementById(id));
+
+  // ---------- data access: value in % of GDP at a fractional year
+  function lerp(arr, t) { const i = Math.min(arr.length - 2, Math.max(0, Math.floor(t - Y0))); const f = Math.min(1, Math.max(0, t - Y0 - i)); return arr[i] + (arr[i + 1] - arr[i]) * f; }
+  function state(t) {
+    const gdp = lerp(D.gdp, t), pop = lerp(D.population_millions, t);
+    const pct = v => 100 * v / gdp;
+    const side = (obj, order) => order.map(k => {
+      const c = obj[k]; const tot = lerp(c.total, t);
+      let subs = Object.entries(c.subs).map(([n, s]) => ({ name: n, v: pct(lerp(s, t)) })).filter(s => s.v > 0.004);
+      return { key: k, label: D.labels[obj === D.receipts ? "receipts" : "outlays"][k], v: pct(tot), usd: tot, subs };
+    });
+    const inT = INORDER.reduce((a, k) => a + lerp(D.receipts[k].total, t), 0), outT = OUTORDER.reduce((a, k) => a + lerp(D.outlays[k].total, t), 0);
+    const i = Math.round(Math.min(Y1, Math.max(Y0, t))) - Y0;
+    return { year: t, gdp, pop, inT: pct(inT), outT: pct(outT), inUsd: inT, outUsd: outT,
+      left: side(D.receipts, INORDER), right: side(D.outlays, OUTORDER),
+      pub: pct(lerp(D.debt.public, t)), acc: pct(lerp(D.debt.accounts, t)), pubUsd: lerp(D.debt.public, t),
+      basis: (D.basis.outlays[i] || "").startsWith("OMB") ? "OMB Historical Tables" : "Census Historical Statistics" };
+  }
+
+  // ---------- drawing helpers
+  const pipes = new Map();
+  function pipe(id) { if (!pipes.has(id)) pipes.set(id, { parts: [] }); return pipes.get(id); }
+  function stack(items, center, minTop, maxBot, gap, minSlot) {
+    let total = 0; items.forEach(it => { it.slot = Math.max(it.h, minSlot); total += it.slot + gap; }); total -= gap;
+    let y = Math.max(minTop, Math.min(center - total / 2, maxBot - total));
+    items.forEach(it => { it.y = y; it.cy = y + it.slot / 2; y += it.slot + gap; });
+  }
+  function bez(x0, y0, x1, y1, t) { const mx = (x0 + x1) / 2, u = 1 - t; return [u*u*u*x0 + 3*u*u*t*mx + 3*u*t*t*mx + t*t*t*x1, u*u*u*y0 + 3*u*u*t*y0 + 3*u*t*t*y1 + t*t*t*y1]; }
+  function drawPipe(x0, y0, x1, y1, w, color, alpha) {
+    if (w < 0.4) return; const mx = (x0 + x1) / 2;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.bezierCurveTo(mx, y0, mx, y1, x1, y1);
+    ctx.lineWidth = w; ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  function flow(id, x0, y0, x1, y1, w, motion) {
+    const p = pipe(id);
+    if (w >= 1 && motion > 0) { const n = w * 0.06 * motion; let k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0); while (k--) p.parts.push({ t: 0, o: (Math.random() - 0.5) * 0.9, v: (0.004 + Math.random() * 0.003) * Math.max(0.6, motion) }); }
+    ctx.fillStyle = css.ink; ctx.globalAlpha = 0.85;
+    for (let i = p.parts.length - 1; i >= 0; i--) { const q = p.parts[i]; q.t += q.v * (motion > 0 ? 1 : 0.4); if (q.t >= 1) { p.parts.splice(i, 1); continue; }
+      const [x, y] = bez(x0, y0, x1, y1, q.t); ctx.beginPath(); ctx.arc(x, y + q.o * w, Math.min(1.8, 0.6 + w * 0.08), 0, 6.283); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (p.parts.length > 400) p.parts.splice(0, p.parts.length - 400);
+  }
+  function label(text, x, y, align, font, color, halo) { ctx.font = font; ctx.textAlign = align; ctx.textBaseline = "middle"; if (halo) { ctx.lineWidth = 3; ctx.strokeStyle = css.panel; ctx.lineJoin = "round"; ctx.strokeText(text, x, y); } ctx.fillStyle = color; ctx.fillText(text, x, y); }
+  const pct = v => v < 0.05 && v > 0 ? "<0.1%" : (Math.round(v * 10) / 10).toFixed(1) + "%";
+  const usd = m => m >= 1e6 ? "$" + (m / 1e6).toFixed(2) + " T" : m >= 1000 ? "$" + (m / 1000).toFixed(m >= 1e5 ? 0 : 1) + " B" : "$" + m.toFixed(m >= 100 ? 0 : 1) + " M";
+
+  function build(items, colorOf) {
+    const cats = items.filter(c => c.v > 0.01).map(c => ({ ...c, h: c.v * K, color: colorOf(c.key) }));
+    const subs = [];
+    cats.forEach(c => {
+      let list = c.subs.length ? c.subs : [{ name: c.label, v: c.v }];
+      const tot = list.reduce((a, s) => a + s.v, 0) || 1;
+      let off = 0; c.items = [];
+      list.forEach(s => { const v = c.v * s.v / tot; const it = { name: s.name, cat: c, v, h: v * K, off }; c.items.push(it); subs.push(it); off += v * K; });
+    });
+    stack(cats, ZY, 14, H - 80, GAP, CATSLOT);
+    stack(subs, ZY, 14, H - 80, SUBGAP, MINSLOT);
+    return { cats, subs };
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (playing) { year += dt * speed / 1.2; if (year >= Y1) { year = Y1; stop(); playBtn.textContent = "Replay"; } yrIn.value = year; }
+    if (!D) { requestAnimationFrame(frame); return; }
+    const st = state(year);
+    const fontS = '500 11.5px Barlow', fontC = '600 13px Barlow', fontD = '700 13px "Barlow Condensed"';
+    ctx.clearRect(0, 0, W, H);
+
+    const L = build(st.left, k => COLORS[k]), R = build(st.right, k => k === "other" ? COLORS.other_out : COLORS[k]);
+    const inH = st.inT * K, outH = st.outT * K;
+    const motion = playing ? Math.min(3, speed) : 0.35;
+    let yIn = ZY - inH / 2, yOut = ZY - outH / 2;
+    L.subs.forEach(it => { const c = it.cat; drawPipe(COL.subL + BAR, it.cy, COL.catL, c.cy - c.h / 2 + it.off + it.h / 2, it.h, c.color, 0.28); });
+    L.cats.forEach(c => { drawPipe(COL.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, c.color, 0.32); yIn += c.h; });
+    R.cats.forEach(c => { drawPipe(TANK.x + TANK.w, yOut + c.h / 2, COL.catR, c.cy, c.h, c.color, 0.32); yOut += c.h; });
+    R.subs.forEach(it => { const c = it.cat; drawPipe(COL.catR + BAR, c.cy - c.h / 2 + it.off + it.h / 2, COL.subR, it.cy, it.h, c.color, 0.28); });
+    yIn = ZY - inH / 2; yOut = ZY - outH / 2;
+    L.subs.forEach(it => { const c = it.cat; flow("ls" + it.name, COL.subL + BAR, it.cy, COL.catL, c.cy - c.h / 2 + it.off + it.h / 2, it.h, motion); });
+    L.cats.forEach(c => { flow("lc" + c.key, COL.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, motion); yIn += c.h; });
+    R.cats.forEach(c => { flow("rc" + c.key, TANK.x + TANK.w, yOut + c.h / 2, COL.catR, c.cy, c.h, motion); yOut += c.h; });
+    R.subs.forEach(it => { const c = it.cat; flow("rs" + it.name, COL.catR + BAR, c.cy - c.h / 2 + it.off + it.h / 2, COL.subR, it.cy, it.h, motion); });
+
+    const node = (x, c, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, c - Math.max(1, h) / 2, BAR, Math.max(1, h)); };
+    L.subs.forEach(it => { node(COL.subL, it.cy, it.h, it.cat.color); label(it.name + "  " + pct(it.v), COL.subL - 6, it.cy, "right", fontS, css.muted, true); });
+    L.cats.forEach(c => { node(COL.catL, c.cy, c.h, c.color); label(c.label, COL.catL + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), COL.catL + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true); });
+    R.cats.forEach(c => { node(COL.catR, c.cy, c.h, c.color); label(c.label, COL.catR + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), COL.catR + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true); });
+    R.subs.forEach(it => { node(COL.subR, it.cy, it.h, it.cat.color); label(it.name + "  " + pct(it.v), COL.subR + BAR + 6, it.cy, "left", fontS, css.muted, true); });
+
+    // tank: public debt solid, government accounts lighter on top
+    ctx.fillStyle = css.bg; ctx.fillRect(TANK.x, TANK.top, TANK.w, TANK.bot - TANK.top);
+    const dPub = Math.min(st.pub * K, TANK.bot - ZY), dAcc = Math.min(st.acc * K, TANK.bot - ZY - dPub);
+    ctx.fillStyle = css.debt; ctx.globalAlpha = 0.3; ctx.fillRect(TANK.x, ZY, TANK.w, dPub); ctx.globalAlpha = 1;
+    ctx.save(); ctx.beginPath(); ctx.rect(TANK.x, ZY, TANK.w, dPub); ctx.clip(); ctx.strokeStyle = css.debt; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+    for (let x = TANK.x - dPub; x < TANK.x + TANK.w; x += 7) { ctx.beginPath(); ctx.moveTo(x, ZY); ctx.lineTo(x + dPub, ZY + dPub); ctx.stroke(); } ctx.restore(); ctx.globalAlpha = 1;
+    if (dAcc > 0.5) { ctx.fillStyle = css.debt2; ctx.globalAlpha = 0.45; ctx.fillRect(TANK.x, ZY + dPub, TANK.w, dAcc); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = css.debt; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(TANK.x, ZY + dPub); ctx.lineTo(TANK.x + TANK.w, ZY + dPub); ctx.stroke();
+    ctx.strokeStyle = css.line; ctx.lineWidth = 1.5; ctx.strokeRect(TANK.x + 0.5, TANK.top + 0.5, TANK.w - 1, TANK.bot - TANK.top - 1);
+    ctx.strokeStyle = css.ink; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(TANK.x, ZY); ctx.lineTo(TANK.x + TANK.w, ZY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '500 10px "Barlow Condensed"'; ctx.fillStyle = css.muted; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    for (let p = -120; p <= 0; p += 20) { const yy = ZY - p * K; ctx.fillRect(TANK.x + TANK.w - 6, yy, 6, 1); ctx.fillText(p + "%", TANK.x + TANK.w + 3, yy); }
+    label("THE TANK", TANK.x + TANK.w / 2, TANK.top - 22, "center", '700 15px "Barlow Condensed"', css.ink);
+    label("federal debt, % of GDP", TANK.x + TANK.w / 2, TANK.top - 9, "center", '500 10px "Barlow Condensed"', css.muted);
+    label("held by the public " + pct(st.pub), TANK.x + TANK.w / 2, dPub > 20 ? ZY + dPub - 9 : ZY + dPub + 11, "center", '600 12px "Barlow Condensed"', css.debt, true);
+    if (dAcc > 14) label("gov. accounts " + pct(st.acc), TANK.x + TANK.w / 2, Math.min(TANK.bot - 8, ZY + dPub + dAcc - 8), "center", '500 11px "Barlow Condensed"', css.debt, true);
+    label("IN  " + pct(st.inT), TANK.x - 6, TANK.top - 9, "right", '700 12px "Barlow Condensed"', css.water);
+    label("OUT  " + pct(st.outT), TANK.x + TANK.w + 6, TANK.top - 9, "left", '700 12px "Barlow Condensed"', css.ink);
+    label("PROGRAMS", COL.subL + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
+    label("SOURCES", COL.catL + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
+    label("FUNCTIONS", COL.catR + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
+    label("PROGRAMS", COL.subR + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
+
+    // timeline strip: debt held by the public over time
+    const tx0 = 40, tx1 = W - 40, ty0 = H - 58, ty1 = H - 10, tz = ty0 + 12;
+    const xx = y => tx0 + (y - Y0) / (Y1 - Y0) * (tx1 - tx0), sc = (ty1 - tz) / 125;
+    ctx.beginPath(); ctx.moveTo(xx(Y0), tz);
+    D.years.forEach((y, i) => ctx.lineTo(xx(y), tz + Math.min(125, 100 * D.debt.public[i] / D.gdp[i]) * sc)); ctx.lineTo(xx(Y1), tz); ctx.closePath();
+    ctx.fillStyle = css.debt; ctx.globalAlpha = 0.35; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = css.line; ctx.beginPath(); ctx.moveTo(tx0, tz); ctx.lineTo(tx1, tz); ctx.stroke();
+    ctx.font = '500 10px "Barlow Condensed"'; ctx.fillStyle = css.muted; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let y = 1800; y <= 2020; y += 20) ctx.fillText(y, xx(y), ty1 + 1);
+    EVENTS.forEach(([y, t], i) => { ctx.fillStyle = css.line; ctx.fillRect(xx(y), tz, 1, ty1 - tz); ctx.fillStyle = css.muted; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(t, xx(y) + 3, ty0 - 4 + (i % 2) * 11 - 8); });
+    ctx.textAlign = "left"; ctx.fillStyle = css.muted; ctx.fillText("debt held by the public, % of GDP", tx0, ty0 - 12);
+    ctx.strokeStyle = css.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(xx(year), ty0); ctx.lineTo(xx(year), ty1); ctx.stroke();
+
+    // readouts
+    const bal = st.inT - st.outT, balUsd = st.inUsd - st.outUsd;
+    ro.rYear.textContent = Math.floor(year); ro.rBasis.textContent = st.basis;
+    ro.rIn.textContent = pct(st.inT) + " GDP"; ro.rInD.textContent = usd(st.inUsd);
+    ro.rOut.textContent = pct(st.outT) + " GDP"; ro.rOutD.textContent = usd(st.outUsd);
+    ro.rBal.textContent = (bal >= 0 ? "+" : "−") + pct(Math.abs(bal)); ro.rBal.className = "v " + (bal >= 0 ? "pos" : "neg"); ro.rBalD.textContent = (balUsd >= 0 ? "surplus " : "deficit ") + usd(Math.abs(balUsd));
+    ro.rLvl.textContent = pct(st.pub) + " GDP"; ro.rLvl.className = "v neg"; ro.rLvlD.textContent = usd(st.pubUsd);
+    sound(st, dt);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- sound
+  let A = null;
+  function initSound(audio, master) {
+    if (!audio) return;
+    const buf = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate); const d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.05; d[i] = (b0 + b1 + b2 + w * 0.18) * 0.12; }
+    const src = audio.createBufferSource(); src.buffer = buf; src.loop = true;
+    const filt = audio.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 600; filt.Q.value = 0.7;
+    const ng = audio.createGain(); ng.gain.value = 0;
+    src.connect(filt).connect(ng).connect(master); src.start();
+    const o1 = audio.createOscillator(), o2 = audio.createOscillator(); o1.type = "sine"; o2.type = "triangle";
+    const dg = audio.createGain(); dg.gain.value = 0; const df = audio.createBiquadFilter(); df.type = "lowpass"; df.frequency.value = 400;
+    o1.connect(dg); o2.connect(dg); dg.connect(df).connect(master); o1.start(); o2.start();
+    A = { audio, master, ng, filt, o1, o2, dg, lastTick: Math.floor(year) };
+  }
+  function sound(st, dt) {
+    if (!A) return;
+    const t = A.audio.currentTime;
+    const total = st.inT + st.outT;
+    A.ng.gain.setTargetAtTime(playing ? Math.min(0.5, total / 60) : 0.03, t, 0.3);
+    A.filt.frequency.setTargetAtTime(300 + 1400 * Math.min(1, st.inT / (total || 1)), t, 0.3);
+    const f = 165 * Math.pow(2, -st.pub / 90);
+    A.o1.frequency.setTargetAtTime(f, t, 0.2); A.o2.frequency.setTargetAtTime(f * 1.5 + 0.7, t, 0.2);
+    A.dg.gain.setTargetAtTime(playing ? 0.06 : 0.02, t, 0.5);
+    const yi = Math.floor(year);
+    if (playing && yi !== A.lastTick) {
+      A.lastTick = yi;
+      const o = A.audio.createOscillator(), g = A.audio.createGain(); o.type = "sine"; o.frequency.value = yi % 10 === 0 ? 1320 : 880;
+      g.gain.setValueAtTime(yi % 10 === 0 ? 0.08 : 0.035, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g).connect(A.master); o.start(t); o.stop(t + 0.13);
+    }
+  }
+
+  // ---------- wiring
+  function stop() { playing = false; playBtn.setAttribute("aria-pressed", "false"); playBtn.textContent = year >= Y1 ? "Replay" : "Play"; }
+  function play() { if (year >= Y1) year = Y0; playing = true; playBtn.setAttribute("aria-pressed", "true"); playBtn.textContent = "Pause"; }
+  playBtn.addEventListener("click", () => playing ? stop() : play());
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll(".seg button").forEach(q => q.setAttribute("aria-pressed", q === b ? "true" : "false")); speed = +b.dataset.s; }));
+  yrIn.addEventListener("input", () => { year = +yrIn.value; });
+
+  fetch("data/ledger.json").then(r => r.json()).then(d => { D = d; });
+  requestAnimationFrame(t => { last = t; frame(t); });
+
+  Gallery.mount({
+    slug: "treasury-machine",
+    title: "The Treasury Machine",
+    blurb: "Two hundred and thirty-seven fiscal years of federal income and spending as a hydraulic machine. Pipes are sized in percent of GDP, and the tank level is the debt. The run takes about five minutes at 1×.",
+    onStart(audio, master) {
+      entered = true; initSound(audio, master);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) { year = Y0; play(); }
+    }
+  });
+})();
+</script>
+</body>
+</html>

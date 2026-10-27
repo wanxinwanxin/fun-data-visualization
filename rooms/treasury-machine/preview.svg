@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400">
+  <rect width="640" height="400" fill="#dfe5e9"/>
+  <rect x="12" y="12" width="616" height="376" rx="10" fill="#eef1f3" stroke="#b9c5cd"/>
+  <g font-family="'Barlow Condensed', 'Arial Narrow', sans-serif" font-weight="700" fill="#13232f">
+    <text x="32" y="52" font-size="30" letter-spacing="1">THE TREASURY MACHINE</text>
+    <text x="32" y="72" font-size="12" font-weight="500" fill="#5b6b78">FEDERAL RECEIPTS AND OUTLAYS, 1789 TO 2025, IN PERCENT OF GDP</text>
+  </g>
+  <!-- income pipes into the tank -->
+  <g fill="none" stroke-linecap="butt" opacity="0.55">
+    <path d="M40 150 C 160 150, 160 185, 260 185" stroke="#1f7a46" stroke-width="22"/>
+    <path d="M40 182 C 160 182, 160 203, 260 203" stroke="#2b86a0" stroke-width="14"/>
+    <path d="M40 206 C 160 206, 160 212, 260 212" stroke="#9fc47f" stroke-width="5"/>
+    <path d="M40 222 C 160 222, 160 216, 260 216" stroke="#3f9a82" stroke-width="2"/>
+    <path d="M40 236 C 160 236, 160 219, 260 219" stroke="#8a9a3c" stroke-width="2"/>
+  </g>
+  <!-- outlay pipes out of the tank -->
+  <g fill="none" opacity="0.55">
+    <path d="M380 170 C 480 170, 480 120, 600 120" stroke="#3f5f95" stroke-width="8"/>
+    <path d="M380 183 C 480 183, 480 150, 600 150" stroke="#5747a3" stroke-width="13"/>
+    <path d="M380 199 C 480 199, 480 182, 600 182" stroke="#9a3f74" stroke-width="16"/>
+    <path d="M380 214 C 480 214, 480 210, 600 210" stroke="#7a8fc4" stroke-width="6"/>
+    <path d="M380 223 C 480 223, 480 230, 600 230" stroke="#86829c" stroke-width="8"/>
+    <path d="M380 231 C 480 231, 480 248, 600 248" stroke="#b06d96" stroke-width="3"/>
+    <path d="M380 236 C 480 236, 480 262, 600 262" stroke="#b7bccb" stroke-width="4"/>
+  </g>
+  <!-- the tank -->
+  <rect x="260" y="110" width="120" height="250" fill="#dfe5e9" stroke="#b9c5cd" stroke-width="1.5"/>
+  <defs><pattern id="h" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#c2443a" fill-opacity="0.3"/><line x1="0" y1="0" x2="0" y2="7" stroke="#c2443a" stroke-opacity="0.5"/></pattern></defs>
+  <rect x="260" y="200" width="120" height="155" fill="url(#h)"/>
+  <rect x="260" y="325" width="120" height="30" fill="#e39a8f" fill-opacity="0.45"/>
+  <line x1="260" y1="325" x2="380" y2="325" stroke="#c2443a" stroke-width="2"/>
+  <line x1="260" y1="200" x2="380" y2="200" stroke="#13232f" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <g font-family="'Barlow Condensed', 'Arial Narrow', sans-serif" font-size="11" fill="#5b6b78" font-weight="600">
+    <text x="320" y="100" text-anchor="middle" fill="#13232f" font-size="13">THE TANK</text>
+    <text x="320" y="343" text-anchor="middle" fill="#c2443a">held by the public 99%</text>
+    <text x="252" y="100" text-anchor="end" fill="#1b7f9e">IN 17.3%</text>
+    <text x="388" y="100" fill="#13232f">OUT 23.1%</text>
+    <text x="40" y="128">SOURCES</text>
+    <text x="600" y="100" text-anchor="end">FUNCTIONS</text>
+  </g>
+  <!-- particles -->
+  <g fill="#13232f" opacity="0.8">
+    <circle cx="90" cy="148" r="1.6"/><circle cx="130" cy="152" r="1.6"/><circle cx="175" cy="160" r="1.6"/><circle cx="215" cy="176" r="1.6"/><circle cx="110" cy="184" r="1.4"/><circle cx="190" cy="196" r="1.4"/>
+    <circle cx="420" cy="176" r="1.6"/><circle cx="470" cy="160" r="1.6"/><circle cx="530" cy="130" r="1.6"/><circle cx="440" cy="190" r="1.6"/><circle cx="500" cy="187" r="1.6"/><circle cx="560" cy="184" r="1.6"/><circle cx="450" cy="222" r="1.4"/><circle cx="540" cy="245" r="1.4"/>
+  </g>
+  <!-- timeline strip -->
+  <path d="M40 372 L40 372 L100 366 L140 371 L200 364 L240 368 L280 362 L330 356 L360 340 L380 358 L420 362 L450 352 L500 362 L540 352 L580 338 L600 336 L600 372 Z" fill="#c2443a" fill-opacity="0.35"/>
+  <line x1="40" y1="372" x2="600" y2="372" stroke="#b9c5cd"/>
+</svg>
