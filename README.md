@@ -10,6 +10,7 @@ A gallery of animated and sonified visualizations. Each room uses one public dat
 - `shared/room.js` gives each room the entry overlay, the navigation chip, and the sound toggle.
 - `tools/shot.py` opens a room in headless Chromium and saves a screenshot.
 - `data/raw/` holds raw downloads. Git ignores this directory.
+- Room 14 (`treasury-machine`) rebuilds two scanned Census tables with OCR. Its README lists the extra steps and the manual corrections.
 
 ## Run
 
