@@ -42,6 +42,10 @@
   .stage { overflow-x: auto; padding: 4px 0 8px; }
   canvas { display: block; width: 100%; min-width: 1000px; height: auto; }
   h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
+  .look { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .look .k { font-family: var(--font-display); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .look .seg { flex-wrap: wrap; }
+  .inside { margin: 0; flex: 1 1 100%; font-size: 14px; color: var(--muted); min-height: 2.9em; max-width: 110ch; }
   .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 24px; font-size: 14px; color: var(--muted); }
   .notes p { margin: 0; } .notes b { color: var(--ink); font-weight: 600; }
   a { color: var(--water); }
@@ -60,7 +64,7 @@
 
   <div class="panel controls">
     <button class="btn" id="play" aria-pressed="false">Play from 1789</button>
-    <div class="seg" role="group" aria-label="Speed">
+    <div class="seg" id="speed" role="group" aria-label="Speed">
       <button data-s="0.5" aria-pressed="false">½×</button>
       <button data-s="1" aria-pressed="true">1×</button>
       <button data-s="3" aria-pressed="false">3×</button>
@@ -77,6 +81,20 @@
     <div class="ro"><span class="k">Debt held by the public</span><span class="v" id="rLvl">–</span><span class="s" id="rLvlD"></span></div>
   </div>
 
+  <div class="panel look">
+    <span class="k">Look inside</span>
+    <div class="seg" id="look" role="group" aria-label="Open a spending function">
+      <button data-k="" aria-pressed="true">Overview</button>
+      <button data-k="defense" aria-pressed="false">Defense</button>
+      <button data-k="social_security" aria-pressed="false">Social Security</button>
+      <button data-k="health" aria-pressed="false">Health</button>
+      <button data-k="income_security" aria-pressed="false">Income security</button>
+      <button data-k="veterans" aria-pressed="false">Veterans</button>
+      <button data-k="other" aria-pressed="false">Everything else</button>
+    </div>
+    <p class="inside" id="inside" aria-live="polite"></p>
+  </div>
+
   <div class="panel stage"><canvas id="c" width="1240" height="660" aria-label="Animated flow of federal receipts and outlays"></canvas></div>
 
   <div class="panel">
@@ -85,7 +103,7 @@
       <p><b>Trade surplus is not revenue.</b> The trade balance belongs to the national accounts. The only trade money the Treasury receives is customs duties, so that is the stream shown.</p>
       <p><b>Interest flows both ways.</b> Net interest on the debt is an outlay on the right. Interest the government earns, and Federal Reserve remittances, are small streams inside "Other receipts" on the left.</p>
       <p><b>The tank is debt held by the public.</b> From 1940 a lighter band on top shows debt held by government accounts, mostly the Social Security trust funds. Before 1940 the Treasury series is gross debt, and the two were nearly the same.</p>
-      <p><b>Programs appear when the data splits them.</b> Receipts by source start in 1934, outlays by function in 1940, and by program in 1962. Before those years the machine shows the Census Bureau series: customs, internal revenue, Army, Navy, interest, pensions.</p>
+      <p><b>Programs appear when the data splits them.</b> Receipts by source start in 1934, outlays by function in 1940, and by program in 1962. Open a spending function to see a third layer of details from 1962. Before those years the machine shows the Census Bureau series: customs, internal revenue, Army, Navy, interest, pensions.</p>
       <p><b>Seams.</b> GDP before 1940 is a calendar-year estimate (MeasuringWorth). The fiscal year ran July to June until 1976. New Deal relief sits inside "Everything else" until 1940, because the function split starts in 1940.</p>
       <p><b>Sound.</b> A noise bed swells with the total flow. A drone drops in pitch as the tank sinks. A tick marks each fiscal year. Sources and method: <a href="README.md">README</a>.</p>
     </div>
@@ -98,23 +116,39 @@
   const Y0 = 1789, Y1 = 2025;
   const INORDER = ["individual", "payroll", "corporate", "excise", "customs", "other"];
   const OUTORDER = ["defense", "social_security", "health", "income_security", "interest", "veterans", "other"];
+  const OPENABLE = ["defense", "social_security", "health", "income_security", "veterans", "other"];
   const COLORS = { individual: "#1f7a46", payroll: "#2b86a0", corporate: "#9fc47f", excise: "#3f9a82", customs: "#8a9a3c", other: "#b3bf9e",
     defense: "#3f5f95", social_security: "#5747a3", health: "#9a3f74", income_security: "#7a8fc4", interest: "#86829c", veterans: "#b06d96", other_out: "#b7bccb" };
   const EVENTS = [[1812, "War of 1812"], [1835, "Debt paid off"], [1861, "Civil War"], [1913, "Income tax"], [1917, "World War I"], [1935, "Social Security"], [1942, "World War II"], [1965, "Medicare"], [1981, "Reagan"], [2008, "Crisis"], [2020, "Pandemic"]];
+  const EVENT_YEARS = new Set(EVENTS.map(e => e[0]));
+  const INSIDE = {
+    "": "Click a spending function on the right, or a button here, to open the next layer of programs.",
+    defense: "Department of Defense outlays by appropriation title, from 1962. Operation and maintenance pays for training, fuel, repairs, and most civilian staff. Procurement buys aircraft, ships, vehicles, and munitions. The Department of Energy does the nuclear weapons work. Before 1940 the split is Army and Navy.",
+    social_security: "Old-age and survivors insurance pays retired workers and their families. Disability insurance pays workers who can no longer work. The payroll taxes on the left pay for both through trust funds.",
+    health: "Medicare Part A gets most of its money from a payroll tax. Parts B and D get about three quarters from general revenue and the rest from premiums and state payments. Medicaid is a grant to the states, which add their own money. Details start in 1966.",
+    income_security: "Cash and food help for low-income families, pensions for retired federal workers, and unemployment pay. A tax credit such as the EITC counts as an outlay only for the part that the IRS pays out above the tax owed. Pandemic payments include the relief checks of 2020 and 2021.",
+    veterans: "Disability compensation pays veterans for injuries and illnesses from their service. Pensions pay wartime veterans with low income. The VA health system and the GI Bill are separate programs.",
+    other: "The eleven smaller budget functions, each split into its subfunctions. Some subfunctions are negative in some years, for example deposit insurance and student loans. The machine leaves those out and scales the other items to the net total."
+  };
 
   const cv = document.getElementById("c"), ctx = cv.getContext("2d");
   const W = 1240, H = 660, K = 2.4, ZY = 236;
   const TANK = { x: 545, w: 150, top: ZY - 12 * K, bot: ZY + 130 * K };
-  const COL = { subL: 205, catL: 380, catR: 820, subR: 985 };
-  const BAR = 10, GAP = 6, SUBGAP = 4, MINSLOT = 13, CATSLOT = 34;
+  // Column x positions. [0] is the overview. [1] is the view with one spending function open.
+  const COLS = [{ subL: 205, catL: 380, tank: 545, catR: 820, subR: 985, detR: 1300 },
+                { subL: 40, catL: 135, tank: 255, catR: 520, subR: 735, detR: 950 }];
+  const BAR = 10, GAP = 6, SUBGAP = 4, MINSLOT = 13, CATSLOT = 34, LABELPAD = 26, DETGAP = 3;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const css = {}; (function () { const s = getComputedStyle(document.documentElement); ["bg", "panel", "ink", "muted", "line", "water", "debt", "debt2", "brass"].forEach(k => css[k] = s.getPropertyValue("--" + k).trim()); })();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   let D = null;            // the ledger
-  let year = Y1, playing = false, speed = 1, last = performance.now(), entered = false;
-  const yrIn = document.getElementById("year"), playBtn = document.getElementById("play");
+  let year = Y1, playing = false, speed = 1, last = performance.now();
+  let open = null, want = null, openT = 0, hits = [];   // open function, requested function, blend 0..1, click targets
+  const yrIn = document.getElementById("year"), playBtn = document.getElementById("play"), insideEl = document.getElementById("inside");
   const ro = {}; ["rYear", "rBasis", "rIn", "rInD", "rOut", "rOutD", "rBal", "rBalD", "rLvl", "rLvlD"].forEach(id => ro[id] = document.getElementById(id));
+  insideEl.textContent = INSIDE[""];
 
   // ---------- data access: value in % of GDP at a fractional year
   function lerp(arr, t) { const i = Math.min(arr.length - 2, Math.max(0, Math.floor(t - Y0))); const f = Math.min(1, Math.max(0, t - Y0 - i)); return arr[i] + (arr[i + 1] - arr[i]) * f; }
@@ -123,7 +157,8 @@
     const pct = v => 100 * v / gdp;
     const side = (obj, order) => order.map(k => {
       const c = obj[k]; const tot = lerp(c.total, t);
-      let subs = Object.entries(c.subs).map(([n, s]) => ({ name: n, v: pct(lerp(s, t)) })).filter(s => s.v > 0.004);
+      const deep = n => c.deep && c.deep[n] ? Object.entries(c.deep[n]).map(([m, s]) => ({ name: m, v: pct(lerp(s, t)) })).filter(s => s.v > 0.004) : [];
+      let subs = Object.entries(c.subs).map(([n, s]) => ({ name: n, v: pct(lerp(s, t)), deep: deep(n) })).filter(s => s.v > 0.004);
       return { key: k, label: D.labels[obj === D.receipts ? "receipts" : "outlays"][k], v: pct(tot), usd: tot, subs };
     });
     const inT = INORDER.reduce((a, k) => a + lerp(D.receipts[k].total, t), 0), outT = OUTORDER.reduce((a, k) => a + lerp(D.outlays[k].total, t), 0);
@@ -137,71 +172,147 @@
   // ---------- drawing helpers
   const pipes = new Map();
   function pipe(id) { if (!pipes.has(id)) pipes.set(id, { parts: [] }); return pipes.get(id); }
-  function stack(items, center, minTop, maxBot, gap, minSlot) {
-    let total = 0; items.forEach(it => { it.slot = Math.max(it.h, minSlot); total += it.slot + gap; }); total -= gap;
+  // Stack items in a column. p is a prefix for the result fields, so one item can hold two layouts.
+  // hk names the height field, so the open layout can stack the magnified heights.
+  function stack(items, center, minTop, maxBot, gap, minSlot, p = "", hk = "h") {
+    let total = 0; items.forEach(it => { it[p + "slot"] = Math.max(it[hk], minSlot); total += it[p + "slot"] + gap; }); total -= gap;
     let y = Math.max(minTop, Math.min(center - total / 2, maxBot - total));
-    items.forEach(it => { it.y = y; it.cy = y + it.slot / 2; y += it.slot + gap; });
+    items.forEach(it => { it[p + "y"] = y; it[p + "cy"] = y + it[p + "slot"] / 2; y += it[p + "slot"] + gap; });
   }
   function bez(x0, y0, x1, y1, t) { const mx = (x0 + x1) / 2, u = 1 - t; return [u*u*u*x0 + 3*u*u*t*mx + 3*u*t*t*mx + t*t*t*x1, u*u*u*y0 + 3*u*u*t*y0 + 3*u*t*t*y1 + t*t*t*y1]; }
   function drawPipe(x0, y0, x1, y1, w, color, alpha) {
-    if (w < 0.4) return; const mx = (x0 + x1) / 2;
+    if (w < 0.4 || alpha < 0.01) return; const mx = (x0 + x1) / 2;
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.bezierCurveTo(mx, y0, mx, y1, x1, y1);
     ctx.lineWidth = w; ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.stroke(); ctx.globalAlpha = 1;
   }
-  function flow(id, x0, y0, x1, y1, w, motion) {
+  // A pipe that changes width between its ends (the magnifier funnel).
+  function ribbon(x0, y0, w0, x1, y1, w1, color, alpha) {
+    if (Math.abs(w0 - w1) < 0.5) return drawPipe(x0, y0, x1, y1, (w0 + w1) / 2, color, alpha);
+    if (alpha < 0.01) return;
+    const mx = (x0 + x1) / 2, a0 = y0 - w0 / 2, b0 = y0 + w0 / 2, a1 = y1 - w1 / 2, b1 = y1 + w1 / 2;
+    ctx.beginPath(); ctx.moveTo(x0, a0); ctx.bezierCurveTo(mx, a0, mx, a1, x1, a1); ctx.lineTo(x1, b1); ctx.bezierCurveTo(mx, b1, mx, b0, x0, b0); ctx.closePath();
+    ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function flow(id, x0, y0, x1, y1, w, motion, a = 1, w1 = w) {
     const p = pipe(id);
-    if (w >= 1 && motion > 0) { const n = w * 0.06 * motion; let k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0); while (k--) p.parts.push({ t: 0, o: (Math.random() - 0.5) * 0.9, v: (0.004 + Math.random() * 0.003) * Math.max(0.6, motion) }); }
-    ctx.fillStyle = css.ink; ctx.globalAlpha = 0.85;
+    if (a < 0.02) { p.parts.length = 0; return; }
+    const wm = Math.min(40, Math.max(w, w1));
+    if (wm >= 1 && motion > 0) { const n = wm * 0.06 * motion; let k = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0); while (k--) p.parts.push({ t: 0, o: (Math.random() - 0.5) * 0.9, v: (0.004 + Math.random() * 0.003) * Math.max(0.6, motion) }); }
+    ctx.fillStyle = css.ink; ctx.globalAlpha = 0.85 * a;
     for (let i = p.parts.length - 1; i >= 0; i--) { const q = p.parts[i]; q.t += q.v * (motion > 0 ? 1 : 0.4); if (q.t >= 1) { p.parts.splice(i, 1); continue; }
-      const [x, y] = bez(x0, y0, x1, y1, q.t); ctx.beginPath(); ctx.arc(x, y + q.o * w, Math.min(1.8, 0.6 + w * 0.08), 0, 6.283); ctx.fill(); }
+      const [x, y] = bez(x0, y0, x1, y1, q.t), wt = w + (w1 - w) * q.t; ctx.beginPath(); ctx.arc(x, y + q.o * wt, Math.min(1.8, 0.6 + wt * 0.08), 0, 6.283); ctx.fill(); }
     ctx.globalAlpha = 1;
     if (p.parts.length > 400) p.parts.splice(0, p.parts.length - 400);
   }
   function label(text, x, y, align, font, color, halo) { ctx.font = font; ctx.textAlign = align; ctx.textBaseline = "middle"; if (halo) { ctx.lineWidth = 3; ctx.strokeStyle = css.panel; ctx.lineJoin = "round"; ctx.strokeText(text, x, y); } ctx.fillStyle = color; ctx.fillText(text, x, y); }
   const pct = v => v < 0.05 && v > 0 ? "<0.1%" : (Math.round(v * 10) / 10).toFixed(1) + "%";
+  const pctf = v => v >= 0.995 ? v.toFixed(1) + "%" : v >= 0.0095 ? v.toFixed(2) + "%" : "<0.01%";
   const usd = m => m >= 1e6 ? "$" + (m / 1e6).toFixed(2) + " T" : m >= 1000 ? "$" + (m / 1000).toFixed(m >= 1e5 ? 0 : 1) + " B" : "$" + m.toFixed(m >= 100 ? 0 : 1) + " M";
 
   function build(items, colorOf) {
     const cats = items.filter(c => c.v > 0.01).map(c => ({ ...c, h: c.v * K, color: colorOf(c.key) }));
     const subs = [];
     cats.forEach(c => {
-      let list = c.subs.length ? c.subs : [{ name: c.label, v: c.v }];
+      let list = c.subs.length ? c.subs : [{ name: c.label, v: c.v, deep: [] }];
       const tot = list.reduce((a, s) => a + s.v, 0) || 1;
       let off = 0; c.items = [];
-      list.forEach(s => { const v = c.v * s.v / tot; const it = { name: s.name, cat: c, v, h: v * K, off }; c.items.push(it); subs.push(it); off += v * K; });
+      list.forEach(s => {
+        const v = c.v * s.v / tot, it = { name: s.name, cat: c, v, h: v * K, off, dets: [] };
+        const dt = s.deep.reduce((a, d) => a + d.v, 0); let doff = 0;
+        if (dt > 0) s.deep.forEach(d => { const dv = v * d.v / dt; it.dets.push({ name: d.name, sub: it, v: dv, h: dv * K, off: doff }); doff += dv * K; });
+        c.items.push(it); subs.push(it); off += v * K;
+      });
     });
     stack(cats, ZY, 14, H - 80, GAP, CATSLOT);
     stack(subs, ZY, 14, H - 80, SUBGAP, MINSLOT);
     return { cats, subs };
+  }
+  // The open layout: the programs of one function, magnified Z times, spread over the full height,
+  // with their details beside them. Each program slot has room for a label above and below the bar.
+  function layoutOpen(c, Z) {
+    const TOP = 34, BOT = H - 80;
+    c.items.forEach(it => { it.zh = it.h * Z; it.zs = it.zh + LABELPAD; it.dets.forEach(d => d.zh = d.h * Z); });
+    stack(c.items, c.cy, TOP, BOT, GAP, 0, "o", "zs");
+    const dets = c.items.flatMap(it => it.dets);
+    let f = 1; const need = () => dets.reduce((a, d) => a + Math.max(d.zh, MINSLOT * f) + DETGAP * f * 2, 0);
+    while (f > 0.3 && need() > BOT - TOP) f *= 0.9;
+    const ms = MINSLOT * f, g = DETGAP * f;
+    // The details of each program form a block centered on that program. Blocks push apart where they overlap.
+    const blocks = c.items.filter(it => it.dets.length).map(it => { let h = -g; it.dets.forEach(d => { d.oslot = Math.max(d.zh, ms); h += d.oslot + g; }); return { it, h, top: it.ocy - h / 2 }; });
+    blocks.forEach((b, i) => { b.top = Math.max(b.top, i ? blocks[i - 1].top + blocks[i - 1].h + 2 * g : TOP); });
+    for (let i = blocks.length - 1; i >= 0; i--) blocks[i].top = Math.min(blocks[i].top, i < blocks.length - 1 ? blocks[i + 1].top - blocks[i].h - 2 * g : BOT - blocks[i].h);
+    blocks.forEach(b => { let y = Math.max(TOP, b.top); b.it.dets.forEach(d => { d.oy = y; d.ocy = y + d.oslot / 2; y += d.oslot + g; }); });
+    return dets;
   }
 
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing) { year += dt * speed / 1.2; if (year >= Y1) { year = Y1; stop(); playBtn.textContent = "Replay"; } yrIn.value = year; }
     if (!D) { requestAnimationFrame(frame); return; }
+    // close the open function first, then open the requested one
+    const target = want === open && open ? 1 : 0;
+    openT = reduceMotion ? target : openT + (target - openT) * Math.min(1, dt * 5);
+    if (want !== open && openT < 0.02) { open = want; openT = reduceMotion && open ? 1 : 0; }
+    const e = openT * openT * (3 - 2 * openT), C = {};
+    for (const k in COLS[0]) C[k] = COLS[0][k] + (COLS[1][k] - COLS[0][k]) * e;
+    TANK.x = C.tank;
+
     const st = state(year);
-    const fontS = '500 11.5px Barlow', fontC = '600 13px Barlow', fontD = '700 13px "Barlow Condensed"';
+    const fontS = '500 11.5px Barlow', fontT = '500 10px Barlow', fontC = '600 13px Barlow', fontD = '700 13px "Barlow Condensed"';
     ctx.clearRect(0, 0, W, H);
 
     const L = build(st.left, k => COLORS[k]), R = build(st.right, k => k === "other" ? COLORS.other_out : COLORS[k]);
+    const oc = open && R.cats.find(c => c.key === open);
+    const Z = oc ? D.zoom[oc.key] : 1, zb = 1 + (Z - 1) * e;               // magnification of the open function
+    const dets = oc ? layoutOpen(oc, Z) : [];
+    const port = it => it.cat.cy - it.cat.h / 2 + it.off + it.h / 2;       // where a program leaves its parent node
+    const dport = d => d.sub.cyB - d.sub.hB / 2 + (d.off + d.h / 2) * zb;   // where a detail leaves its program node
+    R.subs.forEach(it => { const mine = it.cat === oc; it.a = mine ? 1 : 1 - e; it.hB = mine ? it.h * zb : it.h; it.cyB = it.cy + ((mine ? it.ocy : port(it)) - it.cy) * e; });
+    dets.forEach(d => { const p0 = dport(d); d.hB = d.h * zb; d.cyB = p0 + (d.ocy - p0) * e; });
+
     const inH = st.inT * K, outH = st.outT * K;
     const motion = playing ? Math.min(3, speed) : 0.35;
     let yIn = ZY - inH / 2, yOut = ZY - outH / 2;
-    L.subs.forEach(it => { const c = it.cat; drawPipe(COL.subL + BAR, it.cy, COL.catL, c.cy - c.h / 2 + it.off + it.h / 2, it.h, c.color, 0.28); });
-    L.cats.forEach(c => { drawPipe(COL.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, c.color, 0.32); yIn += c.h; });
-    R.cats.forEach(c => { drawPipe(TANK.x + TANK.w, yOut + c.h / 2, COL.catR, c.cy, c.h, c.color, 0.32); yOut += c.h; });
-    R.subs.forEach(it => { const c = it.cat; drawPipe(COL.catR + BAR, c.cy - c.h / 2 + it.off + it.h / 2, COL.subR, it.cy, it.h, c.color, 0.28); });
+    L.subs.forEach(it => drawPipe(C.subL + BAR, it.cy, C.catL, port(it), it.h, it.cat.color, 0.28 * (1 - e)));
+    L.cats.forEach(c => { drawPipe(C.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, c.color, 0.32); yIn += c.h; });
+    R.cats.forEach(c => { drawPipe(TANK.x + TANK.w, yOut + c.h / 2, C.catR, c.cy, c.h, c.color, 0.32); yOut += c.h; });
+    R.subs.forEach(it => ribbon(C.catR + BAR, port(it), it.h, C.subR, it.cyB, it.hB, it.cat.color, it.cat === oc ? 0.28 + 0.12 * e : 0.28 * it.a));
+    dets.forEach(d => drawPipe(C.subR + BAR, dport(d), C.detR, d.cyB, d.hB, oc.color, 0.4 * e));
     yIn = ZY - inH / 2; yOut = ZY - outH / 2;
-    L.subs.forEach(it => { const c = it.cat; flow("ls" + it.name, COL.subL + BAR, it.cy, COL.catL, c.cy - c.h / 2 + it.off + it.h / 2, it.h, motion); });
-    L.cats.forEach(c => { flow("lc" + c.key, COL.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, motion); yIn += c.h; });
-    R.cats.forEach(c => { flow("rc" + c.key, TANK.x + TANK.w, yOut + c.h / 2, COL.catR, c.cy, c.h, motion); yOut += c.h; });
-    R.subs.forEach(it => { const c = it.cat; flow("rs" + it.name, COL.catR + BAR, c.cy - c.h / 2 + it.off + it.h / 2, COL.subR, it.cy, it.h, motion); });
+    L.subs.forEach(it => flow("ls" + it.name, C.subL + BAR, it.cy, C.catL, port(it), it.h, motion, 1 - e));
+    L.cats.forEach(c => { flow("lc" + c.key, C.catL + BAR, c.cy, TANK.x, yIn + c.h / 2, c.h, motion); yIn += c.h; });
+    R.cats.forEach(c => { flow("rc" + c.key, TANK.x + TANK.w, yOut + c.h / 2, C.catR, c.cy, c.h, motion); yOut += c.h; });
+    R.subs.forEach(it => flow("rs" + it.cat.key + it.name, C.catR + BAR, port(it), C.subR, it.cyB, it.h, motion, it.a, it.hB));
+    dets.forEach(d => flow("rd" + d.sub.name + d.name, C.subR + BAR, dport(d), C.detR, d.cyB, d.hB, motion, e));
 
     const node = (x, c, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, c - Math.max(1, h) / 2, BAR, Math.max(1, h)); };
-    L.subs.forEach(it => { node(COL.subL, it.cy, it.h, it.cat.color); label(it.name + "  " + pct(it.v), COL.subL - 6, it.cy, "right", fontS, css.muted, true); });
-    L.cats.forEach(c => { node(COL.catL, c.cy, c.h, c.color); label(c.label, COL.catL + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), COL.catL + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true); });
-    R.cats.forEach(c => { node(COL.catR, c.cy, c.h, c.color); label(c.label, COL.catR + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), COL.catR + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true); });
-    R.subs.forEach(it => { node(COL.subR, it.cy, it.h, it.cat.color); label(it.name + "  " + pct(it.v), COL.subR + BAR + 6, it.cy, "left", fontS, css.muted, true); });
+    if (e < 0.98) { ctx.globalAlpha = 1 - e; L.subs.forEach(it => { node(C.subL, it.cy, it.h, it.cat.color); label(it.name + "  " + pct(it.v), C.subL - 6, it.cy, "right", fontS, css.muted, true); }); ctx.globalAlpha = 1; }
+    L.cats.forEach(c => { node(C.catL, c.cy, c.h, c.color); label(c.label, C.catL + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), C.catL + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true); });
+    R.cats.forEach(c => {
+      ctx.globalAlpha = !oc || c === oc ? 1 : 1 - 0.45 * e;
+      node(C.catR, c.cy, c.h, c.color); label(c.label, C.catR + BAR / 2, c.y + 6, "center", fontC, css.ink, true); label(pct(c.v), C.catR + BAR / 2, c.y + c.slot - 6, "center", fontD, css.muted, true);
+      ctx.globalAlpha = 1;
+    });
+    if (oc) {
+      ctx.font = fontC; const bw = ctx.measureText(oc.label).width + 18;
+      ctx.globalAlpha = e; ctx.strokeStyle = css.brass; ctx.lineWidth = 1.5; ctx.strokeRect(C.catR + BAR / 2 - bw / 2, oc.y - 4, bw, oc.slot + 8); ctx.globalAlpha = 1;
+    }
+    const money = v => usd(v / 100 * st.gdp);
+    R.subs.forEach(it => {
+      if (it.a < 0.02) return;
+      ctx.globalAlpha = it.a; node(C.subR, it.cyB, it.hB, it.cat.color);
+      ctx.globalAlpha = it.a * (1 - e); if (ctx.globalAlpha > 0.02) label(it.name + "  " + pct(it.v), C.subR + BAR + 6, it.cyB, "left", fontS, css.muted, true);
+      if (it.cat === oc) {
+        ctx.globalAlpha = e; const hh = it.hB / 2 + 7;
+        label(it.name, C.subR + BAR / 2, it.cyB - hh, "center", fontC, css.ink, true);
+        label(pctf(it.v) + "  " + money(it.v), C.subR + BAR / 2, it.cyB + hh, "center", fontD, css.muted, true);
+      }
+      ctx.globalAlpha = 1;
+    });
+    ctx.globalAlpha = e;
+    dets.forEach(d => { node(C.detR, d.cyB, d.hB, oc.color); if (d.oslot >= 9.5) label(d.name + "  " + pctf(d.v) + "  " + money(d.v), C.detR + BAR + 6, d.cyB, "left", d.oslot >= 12 ? fontS : fontT, css.muted, true); });
+    if (oc) label("magnified ×" + Math.round(Z), C.subR + BAR / 2, 20, "center", '500 10px "Barlow Condensed"', css.brass);
+    ctx.globalAlpha = 1;
 
     // tank: public debt solid, government accounts lighter on top
     ctx.fillStyle = css.bg; ctx.fillRect(TANK.x, TANK.top, TANK.w, TANK.bot - TANK.top);
@@ -221,10 +332,17 @@
     if (dAcc > 14) label("gov. accounts " + pct(st.acc), TANK.x + TANK.w / 2, Math.min(TANK.bot - 8, ZY + dPub + dAcc - 8), "center", '500 11px "Barlow Condensed"', css.debt, true);
     label("IN  " + pct(st.inT), TANK.x - 6, TANK.top - 9, "right", '700 12px "Barlow Condensed"', css.water);
     label("OUT  " + pct(st.outT), TANK.x + TANK.w + 6, TANK.top - 9, "left", '700 12px "Barlow Condensed"', css.ink);
-    label("PROGRAMS", COL.subL + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
-    label("SOURCES", COL.catL + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
-    label("FUNCTIONS", COL.catR + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
-    label("PROGRAMS", COL.subR + BAR / 2, 8, "center", '600 10px "Barlow Condensed"', css.muted);
+    const head = '600 10px "Barlow Condensed"';
+    ctx.globalAlpha = 1 - e; label("PROGRAMS", C.subL + BAR / 2, 8, "center", head, css.muted);
+    label("click a function to open it", C.catR + BAR / 2, 20, "center", '500 10px "Barlow Condensed"', css.brass); ctx.globalAlpha = 1;
+    label("SOURCES", C.catL + BAR / 2, 8, "center", head, css.muted);
+    label("FUNCTIONS", C.catR + BAR / 2, 8, "center", head, css.muted);
+    label("PROGRAMS", C.subR + BAR / 2, 8, "center", head, css.muted);
+    ctx.globalAlpha = e; label("DETAILS", C.detR + BAR / 2, 8, "center", head, css.muted); ctx.globalAlpha = 1;
+
+    // click targets: function nodes, and in the overview also their program rows
+    hits = R.cats.filter(c => OPENABLE.includes(c.key)).map(c => ({ k: c.key, x0: C.catR - 75, x1: C.catR + 85, y0: c.y - 4, y1: c.y + c.slot + 4 }));
+    if (e < 0.5) R.subs.forEach(it => { if (OPENABLE.includes(it.cat.key)) hits.push({ k: it.cat.key, x0: C.subR - 4, x1: W, y0: it.cyB - it.slot / 2, y1: it.cyB + it.slot / 2 }); });
 
     // timeline strip: debt held by the public over time
     const tx0 = 40, tx1 = W - 40, ty0 = H - 58, ty1 = H - 10, tz = ty0 + 12;
@@ -246,7 +364,7 @@
     ro.rOut.textContent = pct(st.outT) + " GDP"; ro.rOutD.textContent = usd(st.outUsd);
     ro.rBal.textContent = (bal >= 0 ? "+" : "−") + pct(Math.abs(bal)); ro.rBal.className = "v " + (bal >= 0 ? "pos" : "neg"); ro.rBalD.textContent = (balUsd >= 0 ? "surplus " : "deficit ") + usd(Math.abs(balUsd));
     ro.rLvl.textContent = pct(st.pub) + " GDP"; ro.rLvl.className = "v neg"; ro.rLvlD.textContent = usd(st.pubUsd);
-    sound(st, dt);
+    sound(st);
     requestAnimationFrame(frame);
   }
 
@@ -284,14 +402,40 @@
     }
   }
 
+  function valve() {}
+
   // ---------- wiring
   function stop() { playing = false; playBtn.setAttribute("aria-pressed", "false"); playBtn.textContent = year >= Y1 ? "Replay" : "Play"; }
   function play() { if (year >= Y1) year = Y0; playing = true; playBtn.setAttribute("aria-pressed", "true"); playBtn.textContent = "Pause"; }
   playBtn.addEventListener("click", () => playing ? stop() : play());
-  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll(".seg button").forEach(q => q.setAttribute("aria-pressed", q === b ? "true" : "false")); speed = +b.dataset.s; }));
+  document.querySelectorAll("#speed button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll("#speed button").forEach(q => q.setAttribute("aria-pressed", q === b ? "true" : "false")); speed = +b.dataset.s; }));
   yrIn.addEventListener("input", () => { year = +yrIn.value; });
 
-  fetch("data/ledger.json").then(r => r.json()).then(d => { D = d; });
+  const lookBtns = document.querySelectorAll("#look button");
+  function setOpen(k) {
+    if (k === want) return;
+    want = k; valve();
+    lookBtns.forEach(b => b.setAttribute("aria-pressed", (b.dataset.k || null) === k ? "true" : "false"));
+    insideEl.textContent = INSIDE[k || ""];
+  }
+  lookBtns.forEach(b => b.addEventListener("click", () => setOpen(b.dataset.k || null)));
+  function hitAt(ev) { const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width, y = (ev.clientY - r.top) * H / r.height; return hits.find(h => x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1); }
+  cv.addEventListener("click", ev => { const h = hitAt(ev); if (h) setOpen(h.k === want ? null : h.k); });
+  cv.addEventListener("mousemove", ev => { cv.style.cursor = hitAt(ev) ? "pointer" : ""; });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && want) setOpen(null); });
+
+  fetch("data/ledger.json").then(r => r.json()).then(d => {
+    D = d;
+    D.inTot = D.years.map((_, i) => INORDER.reduce((a, k) => a + D.receipts[k].total[i], 0));
+    D.outTot = D.years.map((_, i) => OUTORDER.reduce((a, k) => a + D.outlays[k].total[i], 0));
+    // One magnification per function, from its largest share of GDP since 1962, so growth stays visible.
+    D.zoom = {};
+    OUTORDER.forEach(k => {
+      let m = 0; for (let i = 1962 - Y0; i < D.years.length; i++) m = Math.max(m, 100 * D.outlays[k].total[i] / D.gdp[i]);
+      const n = Object.keys(D.outlays[k].subs).length || 1;
+      D.zoom[k] = Math.max(1, Math.min(60, (H - 94 - n * (LABELPAD + GAP)) / (m * K)));
+    });
+  });
   requestAnimationFrame(t => { last = t; frame(t); });
 
   Gallery.mount({
@@ -299,8 +443,8 @@
     title: "The Treasury Machine",
     blurb: "Two hundred and thirty-seven fiscal years of federal income and spending as a hydraulic machine. Pipes are sized in percent of GDP, and the tank level is the debt. The run takes about five minutes at 1×.",
     onStart(audio, master) {
-      entered = true; initSound(audio, master);
-      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) { year = Y0; play(); }
+      initSound(audio, master);
+      if (!reduceMotion) { year = Y0; play(); }
     }
   });
 })();
