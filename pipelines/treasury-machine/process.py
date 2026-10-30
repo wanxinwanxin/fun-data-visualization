@@ -164,9 +164,9 @@ for y in YEARS:
 O = {k: series() for k in ["defense", "social_security", "health", "income_security", "interest", "veterans", "other"]}
 OS = {
     "defense": {k: series() for k in ["War Department (Army)", "Navy Department", "Military personnel", "Operation and maintenance", "Procurement", "Research and development", "Construction, housing, other", "Atomic energy and defense-related"]},
-    "social_security": {},
+    "social_security": {k: series() for k in ["Old-age and survivors insurance", "Disability insurance"]},
     "health": {k: series() for k in ["Medicare", "Medicaid and health care services", "Health research and training", "Health and safety regulation", "Health (no breakdown)"]},
-    "income_security": {k: series() for k in ["Unemployment compensation", "Food and nutrition (SNAP)", "Housing assistance", "Federal employee retirement", "General retirement and disability", "Other income security"]},
+    "income_security": {k: series() for k in ["Unemployment compensation", "Food and nutrition", "Housing assistance", "Federal employee retirement", "General retirement and disability", "Other income security"]},
     "interest": {},
     "veterans": {k: series() for k in ["Veterans income security", "Veterans medical care", "Veterans education (GI Bill)", "Veterans housing and other"]},
     "other": {k: series() for k in ["Education, training, social services", "Transportation", "International affairs", "Science, space, technology", "Agriculture", "Natural resources, environment", "Energy", "Commerce and housing credit", "Community and regional development", "Administration of justice", "General government"]},
@@ -196,7 +196,7 @@ for y in YEARS:
             h["Medicare"][i] = f["medicare"]; h["Medicaid and health care services"][i] = s["health_services"]; h["Health research and training"][i] = s["health_research"]
             h["Health and safety regulation"][i] = s["health_safety"]
             q = OS["income_security"]
-            q["Unemployment compensation"][i] = s["is_unemployment"]; q["Food and nutrition (SNAP)"][i] = s["is_food"]; q["Housing assistance"][i] = s["is_housing"]
+            q["Unemployment compensation"][i] = s["is_unemployment"]; q["Food and nutrition"][i] = s["is_food"]; q["Housing assistance"][i] = s["is_housing"]
             q["Federal employee retirement"][i] = s["is_federal_retirement"]; q["General retirement and disability"][i] = s["is_general_retirement"]; q["Other income security"][i] = s["is_other"]
             w = OS["veterans"]
             w["Veterans income security"][i] = s["vet_income"]; w["Veterans medical care"][i] = s["vet_medical"]; w["Veterans education (GI Bill)"][i] = s["vet_education"]
@@ -210,6 +210,66 @@ for y in YEARS:
         O["other"][i] = max(0.0, v(HS_OUT, y, "other") * K - O["veterans"][i])
         OS["defense"]["War Department (Army)"][i] = army; OS["defense"]["Navy Department"][i] = navy
         basis_outlays[i] = "HSUS Y457-465"
+
+# ---------------- third layer: details under programs
+# A detail gets its share of the program outlay. Shares come from Table 11.3 (payments
+# for individuals) or Table 3.2 (subfunctions). Negative source values are dropped.
+OD = {k: {} for k in O}   # {function: {program: {detail: series}}}
+
+
+def split(func, prog, i, raw, total=None):
+    total = OS[func][prog][i] if total is None else total
+    pos = {n: max(0.0, x) for n, x in raw.items()}
+    s = sum(pos.values())
+    if total <= 0 or s <= 0:
+        return
+    d = OD[func].setdefault(prog, {})
+    for n, x in pos.items():
+        d.setdefault(n, series())[i] = total * x / s
+
+
+OTHER_DETAILS = {
+    "Education, training, social services": [("501", "Elementary, secondary, vocational"), ("502", "Higher education"), ("503", "Research and general aids"), ("504", "Training and employment"), ("505", "Other labor services"), ("506", "Social services")],
+    "Transportation": [("401", "Ground: highways, transit, rail"), ("402", "Air"), ("403", "Water"), ("407", "Other transportation")],
+    "International affairs": [("151", "Development and humanitarian aid"), ("152", "Security assistance"), ("153", "Conduct of foreign affairs"), ("154", "Foreign information and exchange"), ("155", "International financial programs")],
+    "Science, space, technology": [("251", "General science and basic research"), ("252", "Space flight and research")],
+    "Agriculture": [("351", "Farm income stabilization"), ("352", "Agricultural research and services")],
+    "Natural resources, environment": [("301", "Water resources"), ("302", "Conservation and land management"), ("303", "Recreational resources"), ("304", "Pollution control"), ("306", "Other natural resources")],
+    "Energy": [("271", "Energy supply"), ("272", "Energy conservation"), ("274", "Emergency energy preparedness"), ("276", "Energy information and regulation")],
+    "Commerce and housing credit": [("371", "Mortgage credit"), ("372", "Postal Service"), ("373", "Deposit insurance"), ("376", "Other advancement of commerce")],
+    "Community and regional development": [("451", "Community development"), ("452", "Area and regional development"), ("453", "Disaster relief and insurance")],
+    "Administration of justice": [("751", "Federal law enforcement"), ("752", "Courts and litigation"), ("753", "Federal prisons"), ("754", "Criminal justice assistance")],
+    "General government": [("801", "Legislative branch"), ("802", "Executive direction"), ("803", "Central fiscal operations (IRS)"), ("804", "Property and records"), ("805", "Central personnel management"), ("806", "General purpose fiscal assistance"), ("808", "Other general government")],
+}
+
+for y in YEARS:
+    i = idx[y]
+    p = omb["programs"].get(y) if y >= 1940 else None
+    if p:
+        ss = O["social_security"][i]; tot = p["oasi"] + p["di"]
+        if ss > 0 and tot > 0:
+            OS["social_security"]["Old-age and survivors insurance"][i] = ss * p["oasi"] / tot
+            OS["social_security"]["Disability insurance"][i] = ss * p["di"] / tot
+    s = omb["subfunctions"].get(y) if y >= 1962 else None
+    c = omb["subfunction_codes"].get(y) if y >= 1962 else None
+    if not (s and c and p):
+        continue
+    split("defense", "Construction, housing, other", i, {"Military construction": s["mil_construction"], "Family housing": s["mil_housing"], "Other DoD": s["mil_other"]})
+    split("defense", "Atomic energy and defense-related", i, {"DOE nuclear weapons and cleanup": s["atomic"], "Defense-related activities": s["defense_related"]})
+    split("health", "Medicare", i, {"Part A: hospital insurance": p["medicare_hi"], "Parts B and D: doctors, drugs": p["medicare_smi"]})
+    named = p["medicaid"] + p["premium_credit"] + p["chip"]
+    split("health", "Medicaid and health care services", i, {"Medicaid": p["medicaid"], "ACA premium tax credits": p["premium_credit"], "Children's health insurance": p["chip"],
+                                                            "Other health care services": s["health_services"] - named})
+    split("income_security", "Federal employee retirement", i, {"Civil service retirement": p["civil_retirement"], "Military retirement": p["military_retirement"], "Other federal retirement": p["fed_retirement_other"]})
+    split("income_security", "Food and nutrition", i, {"SNAP (food stamps)": p["snap"], "School meals and child nutrition": p["child_nutrition"], "WIC and supplemental feeding": p["wic"], "Commodities and other": p["commodities"]})
+    named = ["ssi", "eitc", "child_credit", "tanf", "foster_care", "child_care", "liheap", "covid_payments"]
+    split("income_security", "Other income security", i, {"Supplemental Security Income": p["ssi"], "Earned income tax credit": p["eitc"], "Child tax credits": p["child_credit"],
+                                                          "TANF and family support": p["tanf"], "Foster care and adoption": p["foster_care"], "Child care assistance": p["child_care"],
+                                                          "Home energy aid (LIHEAP)": p["liheap"], "Pandemic payments and credits": p["covid_payments"],
+                                                          "Other programs": s["is_other"] - sum(p[k] for k in named)})
+    split("veterans", "Veterans income security", i, {"Disability compensation": p["vet_compensation"], "Pensions": p["vet_pensions"], "Insurance and burial": p["vet_insurance"]})
+    for prog, codes in OTHER_DETAILS.items():
+        split("other", prog, i, {name: c.get(code, 0.0) for code, name in codes})
 
 # ---------------- GDP, population, debt
 gdp = series(); pop = series()
@@ -248,7 +308,8 @@ data = {
     "years": YEARS, "units": "millions of current dollars, fiscal years",
     "gdp": rnd(gdp), "population_millions": rnd(pop), "gdp_basis": gdp_basis,
     "receipts": {k: {"total": rnd(R[k]), "subs": {n: rnd(s) for n, s in RS[k].items()}} for k in R},
-    "outlays": {k: {"total": rnd(O[k]), "subs": {n: rnd(s) for n, s in OS[k].items()}} for k in O},
+    "outlays": {k: {"total": rnd(O[k]), "subs": {n: rnd(s) for n, s in OS[k].items()},
+                    "deep": {pn: {n: rnd(s) for n, s in dd.items()} for pn, dd in OD[k].items()}} for k in O},
     "debt": {"gross": rnd(debt_gross), "public": rnd(debt_public), "accounts": rnd(debt_accounts)},
     "basis": {"receipts": basis_receipts, "outlays": basis_outlays},
     "labels": {"receipts": {"individual": "Individual income tax", "corporate": "Corporate income tax", "payroll": "Payroll taxes", "excise": "Excise taxes", "customs": "Customs duties", "other": "Other receipts"},

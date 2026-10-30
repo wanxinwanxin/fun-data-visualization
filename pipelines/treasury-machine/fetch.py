@@ -23,7 +23,7 @@ def get(url, dest, binary=True):
 
 # 1. OMB Historical Tables. The page lists the current edition's xlsx links.
 page = get("https://www.whitehouse.gov/omb/information-resources/budget/historical-tables/", "hist_page.html").read_text(errors="ignore")
-for t in ["01z1", "01z2", "02z1", "02z4", "02z5", "03z1", "03z2", "07z1", "10z1"]:
+for t in ["01z1", "01z2", "02z1", "02z4", "02z5", "03z1", "03z2", "07z1", "10z1", "11z3"]:
     m = re.search(r'https://[^"]+hist' + t + r'_fy\d+\.xlsx', page)
     if not m:
         sys.exit(f"no link for hist{t} on the OMB page")

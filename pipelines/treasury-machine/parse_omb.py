@@ -71,6 +71,22 @@ def by_label_table(name, wanted, stop=None):
     return data
 
 
+def by_code_table(name):
+    """Table 3.2: every row that starts with a three-digit subfunction code.
+    Returns {year: {code: value}}. A subtotal row overwrites its header row."""
+    R = rows(name)
+    header = next(r for r in R if any(year_of(c) for c in r[1:4]))
+    years = {i: year_of(c) for i, c in enumerate(header) if year_of(c)}
+    data = {y: {} for y in years.values() if y <= LAST}
+    for r in R:
+        m = re.match(r"^(\d{3}) ", r[0].strip()) if isinstance(r[0], str) else None
+        if m:
+            for i, y in years.items():
+                if y <= LAST:
+                    data[y][m.group(1)] = num(r[i])
+    return data
+
+
 out = {}
 
 # 1.1 totals 1901-2025
@@ -128,6 +144,26 @@ out["subfunctions"] = by_label_table("hist03z2.xlsx", {
     "vet_medical": ("703 Hospital and medical care for veterans", 1), "vet_housing": ("704 Veterans housing", 1),
     "vet_other": ("705 Other veterans benefits and services", 1),
     "interest_gross": ("901 Interest on Treasury debt securities (gross)", 1)})
+
+# 3.2 again: all subfunctions by code, for the third layer under "Everything else"
+out["subfunction_codes"] = by_code_table("hist03z2.xlsx")
+
+# 11.3 payments for individuals by major program 1940-  (the year column is the "Total" column)
+out["programs"] = by_label_table("hist11z3.xlsx", {
+    "oasi": ("Social security: old age and survivors insurance", 1), "di": ("Social security: disability insurance", 1),
+    "military_retirement": ("Military retirement", 1), "civil_retirement": ("Civil service retirement", 1),
+    "fed_retirement_other": ("Other", 1), "vet_compensation": ("Veterans service-connected compensation", 1),
+    "medicare_hi": ("Medicare: hospital insurance", 1), "medicare_smi": ("Medicare: supplementary medical insurance", 1),
+    "chip": ("Children's health insurance", 1), "medicaid": ("Medicaid", 1),
+    "premium_credit": ("Refundable Premium Tax Credit and Cost Sharing Reductions", 1),
+    "snap": ("SNAP (formerly Food stamps)(including Puerto Rico)", 1), "child_nutrition": ("Child nutrition and special milk programs", 1),
+    "wic": ("Supplemental feeding programs (WIC and CSFP)", 1), "commodities": ("Commodity donations and other", 1),
+    "ssi": ("Supplemental security income program", 1), "tanf": ("Family support payments to States and TANF", 1),
+    "liheap": ("Low income home energy assistance", 1), "eitc": ("Earned income tax credit", 1),
+    "child_care": ("Child care assistance for low and middle income families", 1),
+    "vet_pensions": ("Veterans non-service connected pensions", 1), "foster_care": ("Payments to States--Foster Care/Adoption Assist.", 1),
+    "child_credit": ("Child Tax Credit and Child and Dependent Care Tax Credit", 1),
+    "covid_payments": ("U.S. Coronavirus payments and credits", 1), "vet_insurance": ("Veterans insurance and burial benefits", 1)})
 
 # 7.1 debt 1940-
 out["debt"] = by_year_table("hist07z1.xlsx", {"gross": 1, "gov_accounts": 2, "public": 3, "fed_reserve": 4})
