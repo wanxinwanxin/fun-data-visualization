@@ -105,7 +105,7 @@
       <p><b>The tank is debt held by the public.</b> From 1940 a lighter band on top shows debt held by government accounts, mostly the Social Security trust funds. Before 1940 the Treasury series is gross debt, and the two were nearly the same.</p>
       <p><b>Programs appear when the data splits them.</b> Receipts by source start in 1934, outlays by function in 1940, and by program in 1962. Open a spending function to see a third layer of details from 1962. Before those years the machine shows the Census Bureau series: customs, internal revenue, Army, Navy, interest, pensions.</p>
       <p><b>Seams.</b> GDP before 1940 is a calendar-year estimate (MeasuringWorth). The fiscal year ran July to June until 1976. New Deal relief sits inside "Everything else" until 1940, because the function split starts in 1940.</p>
-      <p><b>Sound.</b> A noise bed swells with the total flow. A drone drops in pitch as the tank sinks. A tick marks each fiscal year. Sources and method: <a href="README.md">README</a>.</p>
+      <p><b>Sound.</b> Each fiscal year plays one note. The note falls as the debt rises and climbs as the debt falls. A low splash marks a deficit, and a bigger deficit makes a heavier splash. A bright chime marks a surplus. Water noise follows the flows: receipts on the left, outlays on the right. A bell rings at each event on the timeline. Drag the year slider to play the notes by hand. Sources and method: <a href="README.md">README</a>.</p>
     </div>
   </div>
 </div>
@@ -369,40 +369,65 @@
   }
 
   // ---------- sound
+  // Each fiscal year plays one mallet note. The note steps down one place on a pentatonic scale
+  // for each 10% of GDP of debt held by the public. A deficit adds a low splash, a surplus a chime.
+  // Two water beds follow the flows: receipts on the left, outlays on the right.
   let A = null;
+  const SCALE = [0, 2, 4, 7, 9];
+  function noteFor(debt) { const s = Math.max(0, Math.min(12, Math.round((120 - debt) / 10))); return 174.6 * Math.pow(2, (12 * Math.floor(s / 5) + SCALE[s % 5]) / 12); }
   function initSound(audio, master) {
     if (!audio) return;
     const buf = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate); const d = buf.getChannelData(0);
     let b0 = 0, b1 = 0, b2 = 0;
     for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.05; d[i] = (b0 + b1 + b2 + w * 0.18) * 0.12; }
-    const src = audio.createBufferSource(); src.buffer = buf; src.loop = true;
-    const filt = audio.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 600; filt.Q.value = 0.7;
-    const ng = audio.createGain(); ng.gain.value = 0;
-    src.connect(filt).connect(ng).connect(master); src.start();
-    const o1 = audio.createOscillator(), o2 = audio.createOscillator(); o1.type = "sine"; o2.type = "triangle";
-    const dg = audio.createGain(); dg.gain.value = 0; const df = audio.createBiquadFilter(); df.type = "lowpass"; df.frequency.value = 400;
-    o1.connect(dg); o2.connect(dg); dg.connect(df).connect(master); o1.start(); o2.start();
-    A = { audio, master, ng, filt, o1, o2, dg, lastTick: Math.floor(year) };
+    const comp = audio.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.2;
+    const bus = audio.createGain(); bus.gain.value = 1; bus.connect(comp).connect(master);
+    const bed = (pan, offset) => {
+      const src = audio.createBufferSource(); src.buffer = buf; src.loop = true;
+      const f = audio.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 500; f.Q.value = 0.7;
+      const g = audio.createGain(); g.gain.value = 0;
+      src.connect(f).connect(g);
+      if (audio.createStereoPanner) { const p = audio.createStereoPanner(); p.pan.value = pan; g.connect(p).connect(bus); } else g.connect(bus);
+      src.start(0, offset); return { f, g };
+    };
+    A = { audio, bus, noise: buf, inBed: bed(-0.7, 0), outBed: bed(0.7, 1), lastYear: null, lastBeat: 0 };
   }
-  function sound(st, dt) {
+  function voice(type, f, t, g, dur, f1) {
+    const o = A.audio.createOscillator(), e = A.audio.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+    if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+    e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(g, t + 0.006); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(e).connect(A.bus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function burst(t, g, from, to, dur, type = "lowpass") {
+    const n = A.audio.createBufferSource(); n.buffer = A.noise;
+    const f = A.audio.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(from, t); f.frequency.exponentialRampToValueAtTime(to, t + dur);
+    const e = A.audio.createGain(); e.gain.setValueAtTime(g, t); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(f).connect(e).connect(A.bus); n.start(t, Math.random()); n.stop(t + dur + 0.05);
+  }
+  function beat(yi, t) {
+    const i = yi - Y0; if (i < 0 || i >= D.years.length) return;
+    const gs = playing ? 1 / Math.sqrt(Math.max(1, speed / 1.5)) : 0.6, dur = playing ? Math.min(2, 2.6 / Math.max(1, speed)) : 0.6;
+    const debt = 100 * D.debt.public[i] / D.gdp[i], bal = 100 * (D.inTot[i] - D.outTot[i]) / D.gdp[i];
+    const f = noteFor(debt), g = (yi % 10 === 0 ? 0.26 : 0.18) * gs;
+    voice("triangle", f, t, g, dur); voice("sine", f * 4, t, g * 0.35, 0.08);
+    if (bal < -0.1) { const s = Math.min(0.5, 0.06 + 0.04 * -bal) * gs; burst(t, s, 1400, 200, 0.4); voice("sine", 150, t, s * 1.4, 0.35, 48); }
+    else if (bal > 0.1) { const s = Math.min(0.12, 0.03 + 0.03 * bal) * gs; voice("sine", f * 2, t + 0.02, s, 1.2); voice("sine", f * 3, t + 0.02, s * 0.5, 0.9); }
+    if (playing && EVENT_YEARS.has(yi)) [1, 2.76, 5.4, 8.93].forEach((m, j) => voice("sine", 130.8 * m, t, 0.12 / (j + 1), 2.6 / (j + 1)));
+  }
+  function valve() { if (A) burst(A.audio.currentTime, 0.12, 3000, 900, 0.07, "bandpass"); }
+  function sound(st) {
     if (!A) return;
-    const t = A.audio.currentTime;
-    const total = st.inT + st.outT;
-    A.ng.gain.setTargetAtTime(playing ? Math.min(0.5, total / 60) : 0.03, t, 0.3);
-    A.filt.frequency.setTargetAtTime(300 + 1400 * Math.min(1, st.inT / (total || 1)), t, 0.3);
-    const f = 165 * Math.pow(2, -st.pub / 90);
-    A.o1.frequency.setTargetAtTime(f, t, 0.2); A.o2.frequency.setTargetAtTime(f * 1.5 + 0.7, t, 0.2);
-    A.dg.gain.setTargetAtTime(playing ? 0.06 : 0.02, t, 0.5);
+    const t = A.audio.currentTime, on = playing ? 1 : 0.25;
+    [[A.inBed, st.inT], [A.outBed, st.outT]].forEach(([b, v]) => {
+      const x = Math.min(1, v / 30);
+      b.g.gain.setTargetAtTime(on * (0.03 + 0.08 * x), t, 0.3); b.f.frequency.setTargetAtTime(550 + 1300 * x, t, 0.3);
+    });
     const yi = Math.floor(year);
-    if (playing && yi !== A.lastTick) {
-      A.lastTick = yi;
-      const o = A.audio.createOscillator(), g = A.audio.createGain(); o.type = "sine"; o.frequency.value = yi % 10 === 0 ? 1320 : 880;
-      g.gain.setValueAtTime(yi % 10 === 0 ? 0.08 : 0.035, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      o.connect(g).connect(A.master); o.start(t); o.stop(t + 0.13);
+    if (yi !== A.lastYear) {
+      if (playing || t - A.lastBeat > 0.07) { beat(yi, t); A.lastBeat = t; }
+      A.lastYear = yi;
     }
   }
-
-  function valve() {}
 
   // ---------- wiring
   function stop() { playing = false; playBtn.setAttribute("aria-pressed", "false"); playBtn.textContent = year >= Y1 ? "Replay" : "Play"; }
@@ -441,7 +466,7 @@
   Gallery.mount({
     slug: "treasury-machine",
     title: "The Treasury Machine",
-    blurb: "Two hundred and thirty-seven fiscal years of federal income and spending as a hydraulic machine. Pipes are sized in percent of GDP, and the tank level is the debt. The run takes about five minutes at 1×.",
+    blurb: "Two hundred and thirty-seven fiscal years of federal income and spending as a hydraulic machine. Pipes are sized in percent of GDP, and the tank level is the debt. Each year plays one note, and the note falls as the debt grows. The run takes about five minutes at 1×.",
     onStart(audio, master) {
       initSound(audio, master);
       if (!reduceMotion) { year = Y0; play(); }

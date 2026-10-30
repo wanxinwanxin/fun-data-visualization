@@ -54,7 +54,17 @@ When a function is open, its programs and details are magnified. The factor is f
 
 ## Sound
 
-A pink-noise bed swells with the total flow (receipts plus outlays). Its lowpass cutoff follows the receipts share, so deficit years sound darker. A two-oscillator drone drops in pitch as the tank sinks. A short sine tick marks each fiscal year, louder on decades.
+Each fiscal year plays one mallet note (a triangle wave with a short sine strike at four times the pitch). The pitch follows debt held by the public on a major pentatonic scale from F3 to A5. The note goes down one step for each 10% of GDP of debt. Thus the run from 1789 climbs to the top note by the 1830s, when the debt is paid off. The melody falls in the Civil War, in World War I, and in World War II (to the second-lowest note), and it climbs again from 1946 to 1974. Decade years are louder.
+
+- A deficit adds a low splash with the note: a lowpass noise burst and a falling sine. The splash is heavier for a larger deficit (up to 12% of GDP).
+- A surplus adds a chime one octave and one twelfth above the note.
+- Two band-passed noise beds are the water. The receipts bed is on the left, and the outlays bed is on the right. Each bed is louder and brighter for a larger flow, up to 30% of GDP.
+- A bell (inharmonic partials on C3) rings at each event on the timeline.
+- When you drag the year slider, the notes play for each year that you pass.
+- At higher speeds the notes are shorter and quieter. A compressor before the master gain keeps the peaks safe.
+- When you open or close a function, a short valve click plays.
+
+The notes, the chime, the beds, and the noise of the splash are all above 150 Hz, so that laptop speakers can play them. Only the falling sine of the splash is lower, and it adds weight on headphones. The previous design used a drone at 75-165 Hz, which laptop speakers do not play well.
 
 ## Rebuild
 
