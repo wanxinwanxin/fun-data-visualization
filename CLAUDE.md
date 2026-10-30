@@ -14,4 +14,3 @@ A gallery of animated, sonified visualizations of public data. If `HANDOFF.md` e
 ## Publishing
 
 - Personal website: run `tools/sync_site.sh`, then commit and push `~/Github/wanxinwanxin.github.io`. The website keeps its own `gallery/index.html`.
-- claude.ai artifact: run `tools/artifact/build.sh`, then publish `build/artifact/index.html` with the other files in `build/artifact/` as the `files` map (`root` = `build/artifact`). The hub source is `tools/artifact/hub.html`.

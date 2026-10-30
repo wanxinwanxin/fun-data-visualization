@@ -7,3 +7,5 @@ __pycache__/
 tools/screenshots/
 /build/
 HANDOFF.md
+CLAUDE.local.md
+/tools/artifact/
