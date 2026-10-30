@@ -1,0 +1,58 @@
+<title>Data Art Galleries</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=Archivo:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: museum wayfinding. White walls, cobalt signage, a big condensed room number on every doorway. Cards are doorways with the room's own still inside. */
+  :root{
+    --wall:#f3f3f0; --ink:#171716; --muted:#6b6b66; --line:#d6d6d0; --door:#ffffff; --sign:#1d3fc4; --sign-ink:#ffffff;
+    --display:"Archivo Narrow","Arial Narrow","Helvetica Neue",Arial,sans-serif; --body:"Archivo","Helvetica Neue",Arial,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wall:#121214;--ink:#ededea;--muted:#9a9a94;--line:#2b2b2f;--door:#1a1a1d;--sign:#6b86ff;--sign-ink:#0b0b10;color-scheme:dark}}
+  :root[data-theme="dark"]{--wall:#121214;--ink:#ededea;--muted:#9a9a94;--line:#2b2b2f;--door:#1a1a1d;--sign:#6b86ff;--sign-ink:#0b0b10;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wall);color:var(--ink);font-family:var(--body);line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+  header{max-width:1160px;margin:0 auto;padding-block:40px 18px;display:grid;grid-template-columns:auto 1fr;gap:18px 28px;align-items:end}
+  .plate{background:var(--sign);color:var(--sign-ink);font-family:var(--display);font-weight:700;font-size:clamp(44px,9vw,120px);line-height:.9;padding:14px 18px 10px;letter-spacing:-.01em;text-transform:uppercase;text-wrap:balance;max-width:100%}
+  .intro{max-width:56ch;color:var(--ink);font-size:16px;margin:0;align-self:end}
+  .intro p{margin:0 0 8px}
+  .intro .how{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+  .rule{max-width:1160px;margin:0 auto;border-top:2px solid var(--ink)}
+  main{max-width:1160px;margin:0 auto;padding-block:20px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  a.room{display:grid;grid-template-rows:auto 1fr;background:var(--door);border:1px solid var(--line);color:inherit;text-decoration:none;min-width:0;position:relative;transition:transform .2s ease,border-color .2s ease}
+  a.room:hover{transform:translateY(-3px);border-color:var(--ink)}
+  a.room:focus-visible{outline:3px solid var(--sign);outline-offset:3px}
+  .thumb{display:block;width:100%;max-width:100%;aspect-ratio:16/10;object-fit:cover;background:#2a2a2e}
+  .num{position:absolute;top:0;left:0;background:var(--sign);color:var(--sign-ink);font-family:var(--display);font-weight:700;font-size:28px;line-height:1;padding:8px 10px 6px;font-variant-numeric:tabular-nums}
+  .meta{padding:12px 14px 16px;border-top:1px solid var(--line);display:grid;gap:4px}
+  .meta h2{font-family:var(--display);font-weight:700;font-size:24px;margin:0;line-height:1.05;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+  .meta p{margin:0;font-size:14px;color:var(--muted)}
+  .meta .style{font-family:var(--mono);font-size:11px;color:var(--sign);letter-spacing:.05em;text-transform:uppercase;margin-top:4px}
+  footer{max-width:1160px;margin:0 auto;padding-block:0 48px;color:var(--muted);font-size:12px;font-family:var(--mono);border-top:1px solid var(--line);padding-top:14px}
+  @media (max-width:640px){header{grid-template-columns:1fr}.plate{font-size:clamp(40px,14vw,72px)}}
+  @media (prefers-reduced-motion: reduce){a.room{transition:none}}
+</style>
+<header>
+  <div class="plate">Data Art<br>Galleries</div>
+  <div class="intro">
+    <p>Each room takes one public data set that was easy to find and hard to use, and turns it into motion and sound. Every room has its own visual language, from a radar scope to a nautical chart to a hydraulic machine.</p>
+    <p class="how">Open a room, then click once to enter with sound. Use the chip at the bottom left to move between rooms.</p>
+  </div>
+</header>
+<div class="rule"></div>
+<main id="rooms"></main>
+<footer>Built from public data only. Each room documents its source, its sampling rule, and its sound mapping in a README.</footer>
+<script>
+fetch('rooms.json').then(r => r.json()).then(rooms => {
+  const main = document.getElementById('rooms');
+  rooms.forEach((r, i) => {
+    const a = document.createElement('a');
+    a.className = 'room';
+    a.href = `rooms/${r.slug}/index.html`;
+    a.innerHTML = `<img class="thumb" src="rooms/${r.slug}/preview.svg" alt=""><div class="num">${String(i + 1).padStart(2, '0')}</div>
+      <div class="meta"><h2>${r.title}</h2><p>${r.idea}</p><div class="style">${r.style.split(':')[0]}</div></div>`;
+    main.appendChild(a);
+  });
+}).catch(() => { document.getElementById('rooms').textContent = 'The room list did not load.'; });
+</script>
